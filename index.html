@@ -8,16 +8,14 @@
 <style>
 /* ============================================================
    스트로마톨라이트 형성 시뮬레이터 — 고등학교 통합과학 수업용
-   탭 1: 층이 만들어지는 과정 (단계별 확대 관찰)
-   탭 2: 조건에 따라 달라지는 모습 (기준 vs 변경 비교)
-   교실 프로젝터에 맞춘 밝은 단일 테마.
+   탭 1: 층이 만들어지는 과정 (표면 확대 관찰 + 햇빛 상호작용)
+   탭 2: 조건에 따라 달라지는 모습 (동일 시드 비교 + 실측 결과)
    ============================================================ */
 :root{
   --paper:#eef4f2; --card:#ffffff; --line:#d8e2dd;
   --ink:#243640; --ink-soft:#5a6e78;
   --accent:#186a83; --accent-ink:#0e4b5e;
-  --live:#2e8b6e;           /* 살아 있는 매트(청록) */
-  --amber:#c9962e;          /* 강조(층 경계) */
+  --live:#1f8a70; --amber:#c9962e;
   --radius:12px;
 }
 *{box-sizing:border-box}
@@ -44,22 +42,37 @@ header.top{display:flex; align-items:center; gap:18px; flex-wrap:wrap}
 #t1{flex:1; min-height:0; display:flex; flex-direction:column; gap:8px}
 .steps{display:flex; gap:5px}
 .stepChip{flex:1; text-align:center; font-size:12px; padding:5px 3px; border-radius:8px;
-  background:#e3ebe7; color:#93a4ab; line-height:1.3; transition:all .25s}
+  background:#e3ebe7; color:#93a4ab; line-height:1.3; transition:all .25s; min-width:0}
 .stepChip b{font-weight:700}
 .stepChip.cur{background:var(--accent); color:#fff}
 .stepChip.done{background:#cfe0da; color:#4d6a63}
 .canvasWrap{position:relative; flex:1; min-height:0; border-radius:var(--radius); overflow:hidden;
-  background:#bfe0ef; box-shadow:0 1px 4px rgba(30,60,70,.12)}
+  background:#0e2a3a; box-shadow:0 1px 5px rgba(20,45,60,.18)}
 #cv1{position:absolute; inset:0; width:100%; height:100%; display:block}
-#repChip{position:absolute; left:12px; top:10px; background:rgba(255,255,255,.9); color:var(--accent-ink);
-  font-size:13px; font-weight:700; padding:5px 12px; border-radius:99px; box-shadow:0 1px 3px rgba(0,0,0,.15)}
+#repChip{position:absolute; left:12px; top:10px; background:rgba(255,255,255,.88); color:var(--accent-ink);
+  font-size:13px; font-weight:700; padding:5px 12px; border-radius:99px; box-shadow:0 1px 3px rgba(0,0,0,.18)}
+/* 관찰 시작 오버레이 */
+#introOv{position:absolute; inset:0; display:flex; flex-direction:column; gap:12px;
+  align-items:center; justify-content:center; background:rgba(14,42,58,.18)}
+#introOv p{margin:0; color:#fff; font-size:15px; text-shadow:0 1px 6px rgba(10,30,45,.7)}
+.bigbtn{border:0; border-radius:99px; padding:14px 34px; font:inherit; font-size:17px; font-weight:700;
+  background:var(--accent); color:#fff; cursor:pointer; box-shadow:0 3px 12px rgba(10,40,55,.35);
+  transition:transform .12s ease}
+.bigbtn:hover{background:var(--accent-ink); transform:translateY(-1px)}
+/* 햇빛 버튼 */
+#bSun{position:absolute; left:50%; bottom:16px; transform:translateX(-50%);
+  border:0; border-radius:99px; padding:11px 26px; font:inherit; font-size:15px; font-weight:700;
+  background:#f2c94c; color:#5a4310; cursor:pointer; box-shadow:0 2px 10px rgba(20,30,40,.4)}
+#bSun:hover{background:#f6d670}
+#bSun.off{background:rgba(255,255,255,.85); color:#415661}
 
-/* 하단 조작 막대: 단계 이름 + 한 문장 + 버튼 */
+/* 하단 조작 막대 */
 .ctlBar{display:flex; gap:14px; align-items:flex-start; background:var(--card);
   border:1px solid var(--line); border-radius:var(--radius); padding:10px 14px}
 .stepInfo{flex:1; min-width:0}
 .stepName{font-weight:700; font-size:16px}
 .stepCap{font-size:14px; color:var(--ink)}
+#doneHint{font-size:12.5px; color:var(--live); font-weight:500; margin-left:6px}
 .whyBtn{border:0; background:#eaf1ee; color:var(--accent-ink); font:inherit; font-size:12px;
   padding:3px 10px; border-radius:99px; cursor:pointer; margin-top:4px}
 .whyBtn:hover{background:#dde8e3}
@@ -72,9 +85,12 @@ header.top{display:flex; align-items:center; gap:18px; flex-wrap:wrap}
   font:inherit; font-size:14px; font-weight:500; padding:10px 14px; border-radius:9px;
   cursor:pointer; min-height:42px; white-space:nowrap}
 .nbtn:hover{background:#f0f5f3}
-.nbtn.primary{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:700}
+.nbtn.primary{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:700; padding:10px 20px}
 .nbtn.primary:hover{background:var(--accent-ink)}
-.nbtn:disabled{opacity:.4; cursor:not-allowed}
+.nbtn.small{font-size:12.5px; padding:7px 10px; min-height:34px; color:var(--ink-soft); align-self:center}
+.nbtn:disabled{opacity:.38; cursor:not-allowed}
+.nbtn:disabled:hover{background:var(--card)}
+.nbtn.primary:disabled:hover{background:var(--accent)}
 
 /* ---------- 탭 2 ---------- */
 #t2{flex:1; min-height:0; display:flex; flex-direction:column; gap:8px; overflow:auto}
@@ -91,25 +107,30 @@ header.top{display:flex; align-items:center; gap:18px; flex-wrap:wrap}
 .duo figure{margin:0; display:flex; flex-direction:column; min-height:0; gap:6px}
 .duo figcaption{font-size:13.5px; font-weight:700; color:var(--accent-ink)}
 .duo figcaption small{font-weight:400; color:var(--ink-soft)}
-.cwrap{position:relative; flex:1; min-height:210px; border-radius:10px; overflow:hidden;
-  background:#c4e2ef; box-shadow:0 1px 3px rgba(30,60,70,.12)}
+.cwrap{position:relative; flex:1; min-height:220px; border-radius:10px; overflow:hidden;
+  background:#0e2a3a; box-shadow:0 1px 4px rgba(20,45,60,.16)}
 .cwrap canvas{position:absolute; inset:0; width:100%; height:100%; display:block}
-.obs{list-style:none; margin:0; padding:0; display:grid; grid-template-columns:1fr 1fr; gap:4px 12px;
-  font-size:13px; min-height:52px}
-.obs li{background:var(--card); border:1px solid var(--line); border-radius:7px; padding:4px 10px}
-.obs li b{color:var(--accent-ink); font-weight:700; margin-right:6px}
+/* 관찰 결과 카드: 실제 계산값 + 기준 대비 미니 막대 */
+.obs{list-style:none; margin:0; padding:0; display:grid; grid-template-columns:1fr 1fr; gap:4px 10px;
+  font-size:12.5px; min-height:58px}
+.obs li{background:var(--card); border:1px solid var(--line); border-radius:8px; padding:5px 10px 6px}
+.obs .ok{display:flex; justify-content:space-between; align-items:baseline; gap:6px}
+.obs .ok b{color:var(--accent-ink); font-weight:700; font-size:12px}
+.obs .cmp{font-size:11.5px; color:var(--ink-soft); white-space:nowrap}
+.obs .cmp.up{color:#a8760f} .obs .cmp.down{color:#2f6fae}
+.obs .val{font-weight:500}
+.obs .bar{height:4px; border-radius:2px; background:#e6ede9; margin-top:4px; overflow:hidden}
+.obs .bar i{display:block; height:100%; border-radius:2px; background:var(--accent); opacity:.75}
 #duoHint{position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
-  background:rgba(238,244,242,.75); border-radius:10px; font-size:15px; color:var(--ink-soft); text-align:center; padding:20px}
+  background:rgba(238,244,242,.78); border-radius:10px; font-size:15px; color:var(--ink-soft); text-align:center; padding:20px}
 
-/* ---------- 하단 안내 ---------- */
 footer.tiny{font-size:11.5px; color:#8fa0a8; text-align:center; padding:1px 0}
 
-/* ---------- 반응형 ---------- */
 @media (max-width:920px){
   .app{height:auto; min-height:100dvh}
   .brand{white-space:normal}
   .brand small{display:none}
-  #t1 .canvasWrap{min-height:340px}
+  #t1 .canvasWrap{min-height:360px}
   .duo{grid-template-columns:1fr}
   .ctlBar{flex-direction:column}
   .navBtns{justify-content:flex-start}
@@ -124,7 +145,7 @@ footer.tiny{font-size:11.5px; color:#8fa0a8; text-align:center; padding:1px 0}
   <!-- ===== 상단: 제목 + 탭 ===== -->
   <header class="top">
     <div class="brand">스트로마톨라이트 만들기
-      <small>얇은 층 하나가 만들어지는 과정을 확대해서 관찰해 보세요</small></div>
+      <small>미생물 매트의 표면을 확대해 얇은 층 하나가 만들어지는 과정을 관찰합니다</small></div>
     <nav class="tabs" role="tablist">
       <button class="tab" role="tab" id="tabBtn1" aria-selected="true">층이 만들어지는 과정</button>
       <button class="tab" role="tab" id="tabBtn2" aria-selected="false">조건에 따라 달라지는 모습</button>
@@ -137,11 +158,17 @@ footer.tiny{font-size:11.5px; color:#8fa0a8; text-align:center; padding:1px 0}
     <div class="canvasWrap">
       <canvas id="cv1"></canvas>
       <div id="repChip" hidden></div>
+      <div id="introOv">
+        <p>남세균이 사는 미생물 매트의 표면을 크게 확대한 화면입니다.</p>
+        <button class="bigbtn" id="bStart">▶ 관찰 시작</button>
+      </div>
+      <button id="bSun" hidden>☀️ 햇빛 비추기</button>
     </div>
     <div class="ctlBar">
       <div class="stepInfo">
         <span class="stepName" id="stepName"></span>
         <span class="stepCap" id="stepCap"></span>
+        <span id="doneHint" hidden>✓ 관찰이 끝났습니다. 다음 단계로 이동해 보세요.</span>
         <button class="whyBtn" id="btnWhy" aria-expanded="false">왜 그럴까?</button>
         <div class="whyBox" id="whyBox" hidden></div>
         <div class="keyline" id="keyLine" hidden>스트로마톨라이트는 남세균을 포함한 미생물 매트가
@@ -152,7 +179,7 @@ footer.tiny{font-size:11.5px; color:#8fa0a8; text-align:center; padding:1px 0}
         <button class="nbtn" id="bReplay">↺ 다시 보기</button>
         <button class="nbtn" id="bPause">⏸ 일시정지</button>
         <button class="nbtn primary" id="bNext">다음 단계 ▶</button>
-        <button class="nbtn" id="bRestart">처음부터</button>
+        <button class="nbtn small" id="bRestart">처음부터</button>
       </div>
     </div>
   </section>
@@ -167,8 +194,8 @@ footer.tiny{font-size:11.5px; color:#8fa0a8; text-align:center; padding:1px 0}
       </div>
       <div class="seg" id="lvlSeg" role="group" aria-label="조건 수준" hidden></div>
       <div class="duoBtns">
-        <button class="nbtn" id="dReplay">▶ 다시 재생</button>
-        <button class="nbtn" id="dPause">⏸ 일시정지</button>
+        <button class="nbtn" id="dReplay" disabled>▶ 다시 재생</button>
+        <button class="nbtn" id="dPause" disabled>⏸ 일시정지</button>
       </div>
     </div>
     <div class="duo">
@@ -182,7 +209,7 @@ footer.tiny{font-size:11.5px; color:#8fa0a8; text-align:center; padding:1px 0}
         <div class="cwrap"><canvas id="cvB"></canvas></div>
         <ul class="obs" id="obsB"></ul>
       </figure>
-      <div id="duoHint">위에서 바꿀 조건을 하나 선택하면,<br>기준 조건과 바꾼 조건의 화면이 동시에 재생됩니다.</div>
+      <div id="duoHint">위에서 바꿀 조건을 하나 선택하면,<br>기준 조건과 바꾼 조건의 화면이 같은 시드로 동시에 재생됩니다.</div>
     </div>
   </section>
 
@@ -194,8 +221,8 @@ footer.tiny{font-size:11.5px; color:#8fa0a8; text-align:center; padding:1px 0}
    공용 유틸
    ============================================================ */
 const $ = id => document.getElementById(id);
-const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;  // 동작 줄이기 설정
-function mulberry32(seed){                       // 재현 가능한 난수(다시 보기 시 동일한 장면)
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function mulberry32(seed){
   return function(){ seed|=0; seed = seed + 0x6D2B79F5 | 0;
     let t = Math.imul(seed ^ seed>>>15, 1|seed);
     t = t + Math.imul(t ^ t>>>7, 61|t) ^ t;
@@ -203,7 +230,9 @@ function mulberry32(seed){                       // 재현 가능한 난수(다�
 }
 const clamp01 = v => v<0?0:v>1?1:v;
 const ease = t => { t=clamp01(t); return t*t*(3-2*t); };
+const easeOut = t => { t=clamp01(t); return 1-Math.pow(1-t,3); };
 const lerp = (a,b,t) => a+(b-a)*t;
+const hash = n => { const s=Math.sin(n*127.1)*43758.5453; return s-Math.floor(s); };
 
 function fitCanvas(cv){
   const dpr = window.devicePixelRatio || 1;
@@ -214,361 +243,587 @@ function fitCanvas(cv){
   cv.getContext('2d').setTransform(dpr,0,0,dpr,0,0);
   return true;
 }
-
-/* 캔버스 위 짧은 표지(지시선 + 글자) */
+function pathThrough(ctx, pts){
+  ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+  for (let i=1;i<pts.length;i++) ctx.lineTo(pts[i][0], pts[i][1]);
+}
+/* 매끄러운 경로: 꺾인 폴리라인을 여러 번 평균해 곡선으로 */
+function smoothPath(raw, passes){
+  let p = raw;
+  for (let k=0;k<passes;k++){
+    const q=[p[0]];
+    for (let i=1;i<p.length-1;i++)
+      q.push([(p[i-1][0]+p[i][0]*2+p[i+1][0])/4, (p[i-1][1]+p[i][1]*2+p[i+1][1])/4]);
+    q.push(p[p.length-1]); p=q;
+  }
+  return p;
+}
+function samplePath(pts, s){       // s: 0~1, 길이 비례 위치
+  const seg=(pts.length-1)*clamp01(s), i=Math.min(pts.length-2, Math.floor(seg)), f=seg-i;
+  return [lerp(pts[i][0],pts[i+1][0],f), lerp(pts[i][1],pts[i+1][1],f)];
+}
+/* 표지: 작은 지시선 + 글자 (필요한 순간에만 부드럽게) */
 function drawLabel(ctx, txt, ax, ay, tx, ty, alpha){
-  if (alpha <= 0.01) return;
+  if (alpha <= 0.02) return;
   ctx.save(); ctx.globalAlpha = Math.min(1, alpha);
-  ctx.strokeStyle = '#33424b'; ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(40,58,68,.75)'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(tx, ty); ctx.stroke();
-  ctx.font = '500 11.5px "IBM Plex Sans KR", sans-serif';
+  ctx.font = '500 11px "IBM Plex Sans KR", sans-serif';
   const w = ctx.measureText(txt).width;
-  const bx = tx - (tx > ax ? 4 : w+4), by = ty - 18;
-  ctx.fillStyle = 'rgba(255,255,255,.9)';
-  ctx.beginPath(); ctx.roundRect(bx-5, by, w+10, 20, 5); ctx.fill();
-  ctx.fillStyle = '#243640'; ctx.fillText(txt, bx, by+14);
+  const bx = tx - (tx > ax ? 3 : w+3), by = ty - 16;
+  ctx.fillStyle = 'rgba(255,255,255,.88)';
+  ctx.beginPath(); ctx.roundRect(bx-5, by, w+10, 18, 5); ctx.fill();
+  ctx.fillStyle = '#24333d'; ctx.fillText(txt, bx, by+13);
   ctx.restore();
 }
-/* 물 배경 + 은은한 빛 */
-function drawWater(ctx, W, H){
+const labWin = (p,a,b) => clamp01((p-a)/0.12) * clamp01((b-p)/0.12 + 1);
+
+/* ---------- 팔레트 ---------- */
+const PAL = {
+  day:  ['#c3e5f2','#84b9d6','#5f9dc1'],
+  dark: ['#93a7b6','#647c8d','#4b6072'],
+  matA:'#1f8a70', matB:'#4a9d54', matHi:'#c9ecd7',
+  oldA:'#6e7355', oldB:'#7d7460',
+  grain:[['#cfb389','#8a6f4d'],['#bd9e72','#7d6244'],['#d8c19a','#96805c'],['#ad9066','#6f5a3c'],['#c4a473','#83683f']],
+  sub:[['#a68e69','#7c6749'],['#99835f','#6f5c40'],['#b09872','#84704e']],
+  mudTop:'#a9895f', mudBot:'#8d7350',
+  crys:'#f3ecd8', crysEdge:'#c9bb92',
+};
+
+/* ---------- 배경(화면 좌표): 물 + 햇빛 ---------- */
+function drawSea(ctx, W, H, lf){
+  const top = lerpCol(PAL.dark[0], PAL.day[0], lf),
+        mid = lerpCol(PAL.dark[1], PAL.day[1], lf),
+        bot = lerpCol(PAL.dark[2], PAL.day[2], lf);
   const g = ctx.createLinearGradient(0,0,0,H);
-  g.addColorStop(0,'#cdeaf6'); g.addColorStop(0.6,'#8cc0dc'); g.addColorStop(1,'#6aa8c9');
+  g.addColorStop(0,top); g.addColorStop(0.55,mid); g.addColorStop(1,bot);
   ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
-  const s = ctx.createRadialGradient(W*0.25,-30,10, W*0.25,-30,H*0.9);
-  s.addColorStop(0,'rgba(255,246,205,.35)'); s.addColorStop(1,'rgba(255,246,205,0)');
-  ctx.fillStyle = s; ctx.fillRect(0,0,W,H);
+  if (lf > 0.05){
+    const s = ctx.createRadialGradient(W*0.24,-40,10, W*0.24,-40,H*0.95);
+    s.addColorStop(0,`rgba(255,241,196,${0.4*lf})`); s.addColorStop(1,'rgba(255,241,196,0)');
+    ctx.fillStyle = s; ctx.fillRect(0,0,W,H);
+    ctx.save(); ctx.globalAlpha = 0.14*lf; ctx.fillStyle = '#fff3c8';
+    for (let i=0;i<3;i++){
+      const bx = W*(0.08+i*0.11);
+      ctx.beginPath();
+      ctx.moveTo(bx,0); ctx.lineTo(bx+55,0);
+      ctx.lineTo(bx+W*0.14+55,H); ctx.lineTo(bx+W*0.14,H);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+function lerpCol(c1, c2, t){
+  const a=parseInt(c1.slice(1),16), b=parseInt(c2.slice(1),16);
+  const r=Math.round(lerp(a>>16,b>>16,t)), g=Math.round(lerp(a>>8&255,b>>8&255,t)), bb=Math.round(lerp(a&255,b&255,t));
+  return `rgb(${r},${g},${bb})`;
+}
+/* 어두운 상태: 청회색 곱하기 보정(검은 오버레이 대신 색 온도 변화) */
+function gradeDim(ctx, W, H, lf){
+  if (lf > 0.97) return;
+  ctx.save(); ctx.globalCompositeOperation = 'multiply';
+  const k = 1-lf;
+  ctx.fillStyle = `rgb(${Math.round(255-83*k)},${Math.round(255-62*k)},${Math.round(255-40*k)})`;
+  ctx.fillRect(0,0,W,H); ctx.restore();
+}
+
+/* ---------- 퇴적물 입자(명암·하이라이트·그림자) ---------- */
+function makeGrainShape(rnd, size){
+  const nv = 6+Math.floor(rnd()*3), verts=[];
+  for (let k=0;k<nv;k++){ const a=k/nv*6.283, rr=size*(0.68+rnd()*0.42);
+    verts.push([Math.cos(a)*rr, Math.sin(a)*rr*(0.75+rnd()*0.25)]); }
+  const pal = PAL.grain[Math.floor(rnd()*PAL.grain.length)];
+  return { size, verts, c1:pal[0], c2:pal[1], rot0:rnd()*6.28, spin:(rnd()-0.5)*3 };
+}
+function drawGrain(ctx, g, x, y, rot, alpha, shadow){
+  ctx.save(); ctx.globalAlpha = alpha;
+  if (shadow > 0){
+    ctx.globalAlpha = alpha*0.28*shadow; ctx.fillStyle = '#3c2c18';
+    ctx.beginPath(); ctx.ellipse(x, y+g.size*0.85, g.size*1.05, g.size*0.3, 0, 0, 6.283); ctx.fill();
+    ctx.globalAlpha = alpha;
+  }
+  ctx.translate(x,y); ctx.rotate(rot);
+  const grd = ctx.createLinearGradient(-g.size,-g.size,g.size*0.8,g.size);
+  grd.addColorStop(0,g.c1); grd.addColorStop(1,g.c2);
+  ctx.fillStyle = grd;
+  ctx.beginPath(); g.verts.forEach((v,k)=>k?ctx.lineTo(v[0],v[1]):ctx.moveTo(v[0],v[1]));
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = 'rgba(66,48,28,.35)'; ctx.lineWidth = 0.8; ctx.stroke();
+  ctx.fillStyle = 'rgba(255,248,230,.45)';
+  ctx.beginPath(); ctx.ellipse(-g.size*0.28,-g.size*0.34,g.size*0.3,g.size*0.17,-0.6,0,6.283); ctx.fill();
+  ctx.restore();
+}
+
+/* ---------- 사상형 남세균 필라멘트(구슬형 세포 사슬) ---------- */
+function drawChain(ctx, pts, r, live, alpha, epsOn, ph){
+  if (alpha<=0.02 || pts.length<2) return;
+  if (epsOn){                                   // 점액질 젤 피막
+    ctx.save(); ctx.globalAlpha = alpha*0.22;
+    ctx.strokeStyle = '#cfe08e'; ctx.lineWidth = r*3.6; ctx.lineJoin='round'; ctx.lineCap='round';
+    pathThrough(ctx, pts); ctx.stroke(); ctx.restore();
+  }
+  const cA = live?PAL.matA:PAL.oldA, cB = live?PAL.matB:PAL.oldB;
+  ctx.save(); ctx.globalAlpha = alpha;
+  for (let i=0;i<pts.length;i++){
+    const rr = r*(0.86+0.22*Math.sin(i*2.3+ph));
+    ctx.fillStyle = i%2 ? cA : cB;
+    ctx.beginPath(); ctx.arc(pts[i][0], pts[i][1], rr, 0, 6.283); ctx.fill();
+  }
+  if (live){                                    // 세포 하이라이트
+    ctx.globalAlpha = alpha*0.55; ctx.fillStyle = PAL.matHi;
+    for (let i=0;i<pts.length;i+=2){
+      ctx.beginPath(); ctx.arc(pts[i][0]-r*0.3, pts[i][1]-r*0.32, r*0.3, 0, 6.283); ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+function spinePts(f, t, grow){                  // 필라멘트 등뼈(잔물결 움직임)
+  const pts=[], n=Math.max(2, Math.round(f.n*clamp01(grow)));
+  for (let i=0;i<n;i++){ const s=i/(f.n-1);
+    const wob = Math.sin(s*f.freq + f.ph + t*f.spd)*f.amp*(0.25+0.75*s);
+    pts.push([ f.x + Math.cos(f.ang)*f.len*s - Math.sin(f.ang)*wob,
+               f.y + Math.sin(f.ang)*f.len*s + Math.cos(f.ang)*wob ]);
+  }
+  return pts;
+}
+/* 산소 기포: amb 시간의 순수 함수(일시정지와 함께 멈춤) */
+function drawBubbles(ctx, t, lf, x0, x1, surfFn, count, seed){
+  if (lf < 0.55) return;
+  ctx.save();
+  for (let i=0;i<count;i++){
+    const cyc = (t*0.16 + hash(i*3+seed))%1;
+    const x = x0 + (x1-x0)*hash(i*7+seed+1) + Math.sin(t*1.6+i*2)*3;
+    const y = surfFn(x) - 5 - cyc*72;
+    const a = Math.sin(Math.PI*cyc)*0.75*clamp01((lf-0.55)/0.45);
+    ctx.globalAlpha = a; ctx.fillStyle = 'rgba(226,244,252,.85)';
+    ctx.beginPath(); ctx.arc(x, y, 1.9+hash(i+seed)*1.5, 0, 6.283); ctx.fill();
+    ctx.globalAlpha = a*0.8; ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 0.7;
+    ctx.beginPath(); ctx.arc(x, y, 1.9+hash(i+seed)*1.5, 3.4, 5.2); ctx.stroke();
+  }
+  ctx.restore();
 }
 
 /* ============================================================
    탭 1 — 단계 정의
    ============================================================ */
 const STEPS = [
-  { no:'①', name:'미생물 매트', dur:3000,
+  { no:'①', name:'미생물 매트', dur:4200,
     cap:'남세균을 포함한 미생물들이 해저 표면에 얇은 매트를 이룹니다.',
-    why:'매트의 미생물은 광합성으로 살아가며 끈끈한 점액질(EPS)을 분비합니다. 이 점액질이 다음 단계에서 핵심 역할을 합니다.' },
-  { no:'②', name:'퇴적물 도착', dur:3500,
-    cap:'물에 실려 온 미세한 퇴적물이 미생물 매트 표면에 내려앉습니다.',
+    why:'매트 표면의 남세균은 광합성을 하며, 미생물들이 분비한 끈끈한 점액질(EPS)은 퇴적물을 붙잡는 데 도움을 줍니다.' },
+  { no:'②', name:'퇴적물 도착', dur:4200,
+    cap:'물에 실려 온 퇴적물 일부가 미생물 매트 표면에 내려앉습니다.',
     why:'얕은 바다에서는 물결을 따라 진흙·모래 같은 미세한 입자가 끊임없이 운반되어 옵니다.' },
-  { no:'③', name:'포획과 결합', dur:3500,
-    cap:'미생물이 만든 끈끈한 물질이 퇴적물을 붙잡아 쉽게 흩어지지 않게 합니다.',
-    why:'점액질이 없다면 입자들은 물살에 다시 쓸려 갔을 것입니다. 살아 있는 매트가 있어야 퇴적물이 표면에 남습니다.' },
-  { no:'④', name:'새 표면 형성', dur:4000,
-    cap:'일부 미생물이 퇴적물 사이를 따라 위로 이동하고 성장해 새 표면에 매트를 만듭니다.',
-    why:'묻힌 미생물이 모두 이동하는 것은 아닙니다. 일부가 입자 사이 틈을 따라 이동하거나 성장하여, 빛이 닿는 새 표면에 매트를 다시 만듭니다.' },
-  { no:'⑤', name:'광물 침전', dur:3000,
+  { no:'③', name:'포획과 결합', dur:4200,
+    cap:'미생물 매트의 점액질이 내려앉은 입자를 붙잡고 서로 결합시킵니다.',
+    why:'점액질은 내려앉은 입자가 다시 이동하지 않도록 붙잡고 결합하는 데 도움을 줍니다.' },
+  { no:'④', name:'새 표면 형성', dur:5600,
+    capDark:'퇴적물에 덮인 남세균은 어떻게 다시 표면으로 올라올까요?',
+    cap:'빛이 비치면 일부 남세균이 퇴적물 사이를 따라 위로 이동하거나 성장하여 새 표면에 매트를 형성합니다.',
+    why:'광합성은 일어나지 않지만, 이미 만들어진 점액질은 어두운 동안에도 남아 퇴적물을 붙잡을 수 있습니다.' },
+  { no:'⑤', name:'광물 침전', dur:3800,
     cap:'일부 환경에서는 탄산염 광물이 입자 사이에 침전하여 층을 더 단단하게 보존합니다.',
-    why:'탄산염 결정은 입자 사이 틈과 매트 내부에서 자라며 층을 시멘트처럼 굳힙니다. 모든 스트로마톨라이트에서 똑같이 일어나는 과정은 아닙니다.' },
-  { no:'⑥', name:'한 층 완성', dur:2500,
-    cap:'한 번의 반복으로 얇은 층 하나가 남았습니다.',
+    why:'탄산염 결정은 입자 사이 틈과 매트 내부에서 자라며 층을 굳힙니다. 모든 스트로마톨라이트에서 똑같이 일어나는 과정은 아닙니다.' },
+  { no:'⑥', name:'한 층 완성', dur:3200,
+    cap:'퇴적물 포획과 새 표면 형성이 반복되면서 얇은 층이 남습니다.',
     why:'이 얇은 층 하나가 오랜 시간 수없이 반복되어 쌓인 것이 스트로마톨라이트의 줄무늬입니다.' },
 ];
 const REPEAT_INFO = {
   name:'오랜 시간의 반복',
-  capRun:'방금 관찰한 과정이 여러 차례 반복되며 층이 하나씩 늘어납니다.',
+  capRun:'방금 관찰한 과정이 반복되며 층이 하나씩 자랍니다.',
   capEnd:'이 과정이 오랫동안 반복되면서 돔 모양의 층상 구조가 성장합니다.',
   why:'층의 두께와 모양은 그때그때의 환경에 따라 조금씩 다르게 남습니다. 그래서 실제 단면의 줄무늬도 완벽하게 규칙적이지 않습니다.' };
 
 /* ============================================================
-   탭 1 — 확대 관찰 장면 만들기 (고정 시드 → 다시 보기 시 동일)
+   탭 1 — 확대 장면 구성(고정 시드: 다시 보기 시 동일)
    ============================================================ */
-function buildScene(W, H){
+function buildScene(LW, LH){
   const rnd = mulberry32(20260831);
-  const S = { W, H };
-  S.surf = x => H*0.55 + 7*Math.sin(x/95+1.2) + 4*Math.sin(x/41+0.5);  // 처음 표면
+  const S = { LW, LH, SW: LW*1.7 };
+  const cx0 = S.SW/2; S.cx0 = cx0;
+  // 처음 표면: 완만한 돔 곡률 + 잔잔한 기복 (물 ~28% / 상호작용 ~52% / 기질 ~20%)
+  S.surf0 = x => LH*0.72 + 24*Math.pow((x-cx0)/(S.SW/2),2)
+                 + 6*Math.sin(x/72+1.2) + 3.5*Math.sin(x/29+0.4);
 
-  // 매트 세포·필라멘트(남세균 포함 미생물)
-  S.cells = [];
-  for (let x=14; x<W-14; x+=9+rnd()*8)
-    S.cells.push({ x, y:S.surf(x)-3-rnd()*4, r:2+rnd()*1.6, fil:rnd()<0.35,
-                   len:6+rnd()*8, ph:rnd()*6.28, d:rnd()*0.6 });
-  // 점액질(EPS) 방울
-  S.eps = [];
-  for (let x=24; x<W-24; x+=26+rnd()*30)
-    S.eps.push({ x, y:S.surf(x)-5, rx:16+rnd()*14, ry:8+rnd()*5, d:rnd()*0.5 });
-
-  // 퇴적물 입자: 착지 위치·쌓임 높이를 미리 계산
+  // 기질 속 오래된 입자(공극이 보이는 촘촘한 퇴적물)
+  S.subGrains = [];
+  for (let i=0;i<92;i++){
+    const x = rnd()*S.SW, d = 10+rnd()*(LH*0.36+150);
+    const g = makeGrainShape(rnd, 7+rnd()*8);
+    const pal = PAL.sub[Math.floor(rnd()*PAL.sub.length)];
+    g.c1=pal[0]; g.c2=pal[1];
+    S.subGrains.push({ g, x, dy:d, rot:rnd()*6.28 });
+  }
+  // 살아 있는 매트 필라멘트(수평으로 퍼짐 + 위로 굽는 가닥)
+  const AX = LW*0.46;                       // 주요 활동 구간 반폭
+  S.fil = [];
+  for (let i=0;i<14;i++){
+    const up = i%4===0;
+    const x = cx0 - AX + rnd()*AX*2;
+    S.fil.push({ x, y:S.surf0(x)-2.5,
+      ang: up ? -1.15+(rnd()-0.5)*0.5 : (rnd()-0.5)*0.55,
+      len: up ? 24+rnd()*18 : 36+rnd()*30,
+      n: 10+Math.floor(rnd()*7), amp: 4+rnd()*3, freq: 5+rnd()*4,
+      ph: rnd()*6.28, spd: 0.9+rnd()*1.1, d: rnd()*0.55 });
+  }
+  // 주요 퇴적물 입자 15개(3개는 물살에 쓸려감) — 충분히 크게
   S.parts = [];
-  const BK = 18, buckets = new Array(Math.ceil(W/BK)).fill(0);
-  for (let i=0; i<56; i++){
-    const swept = rnd() < 0.2;
-    const lx = 26 + rnd()*(W-52);
-    const size = 3.2 + rnd()*4.2;
+  const BK = 30, nb = Math.ceil(S.SW/BK), buckets = new Array(nb).fill(0);
+  for (let i=0;i<15;i++){
+    const swept = i%5===4;
+    const lx = cx0 - AX*0.92 + rnd()*AX*1.84;
+    const g = makeGrainShape(rnd, 12+rnd()*8);
     let off = 0;
-    if (!swept){ const b=Math.floor(lx/BK); off = buckets[b]*size*0.85; buckets[b]++; }
-    const verts = [], nv = 5+Math.floor(rnd()*3);
-    for (let k=0;k<nv;k++){ const a=k/nv*6.283, rr=size*(0.65+rnd()*0.5);
-      verts.push([Math.cos(a)*rr, Math.sin(a)*rr*0.8]); }
-    S.parts.push({ sx: lx-50+rnd()*100, sy: -15-rnd()*H*0.42,
-      lx, ly:S.surf(lx)-7-off, size, verts, swept,
-      ph:rnd()*6.28, d:rnd()*0.45, sd:rnd()*0.5, hue:rnd() });
+    if (!swept){ const b=Math.floor(lx/BK); off = buckets[b]*g.size*1.15; buckets[b]++; }
+    S.parts.push({ g, swept,
+      sx: lx-70+rnd()*140, sy: -20-rnd()*LH*0.35, fromSide: rnd()<0.25,
+      lx, ly: 0 /*아래에서 확정*/, off,
+      d: rnd()*0.4, sd: rnd()*0.45, ph: rnd()*6.28 });
   }
-  // 퇴적물 덮개(고운 진흙 기질)의 두께 — 붙잡힌 입자 밀도에서
-  const th = buckets.map(c => 4 + c*4.2);
-  const sm = th.map((v,i)=>((th[i-1]??v)+v+(th[i+1]??v))/3);
-  S.cover = x => sm[Math.max(0,Math.min(sm.length-1,Math.floor(x/BK)))];
-  S.newSurf = x => S.surf(x) - 7 - S.cover(x);
-
-  // 위로 이동하는 미생물(개별 세포) — 입자 틈을 따라가는 경로
-  S.migrants = [];
-  for (let i=0; i<9; i++){
-    const x = 40+rnd()*(W-80), y0 = S.surf(x)-4, y1 = S.newSurf(x)-2;
-    const path = [[x,y0]];
-    for (let k=1;k<=3;k++) path.push([x+(rnd()-0.5)*26, lerp(y0,y1,k/3)]);
-    S.migrants.push({ path, d:rnd()*0.4, r:2+rnd() });
+  // 퇴적물 덮개 두께(공극 있는 불규칙한 층) — 착지 입자 밀도 기반
+  const th = new Array(nb).fill(0).map((_,b)=> 24 + buckets[b]*26);
+  for (let k=0;k<2;k++)
+    for (let b=1;b<nb-1;b++) th[b]=(th[b-1]+th[b]*2+th[b+1])/4;
+  S.cover = x => { const b=Math.max(0,Math.min(nb-1,Math.floor(x/BK)));
+    const taper = clamp01(1.25 - Math.abs(x-cx0)/(AX*1.5));
+    return lerp(20, th[b], taper); };
+  S.newSurf = x => S.surf0(x) - 4 - S.cover(x);
+  S.parts.forEach(pt => { pt.ly = S.surf0(pt.lx) - 6 - pt.off; });
+  // 입자를 감싸며 타고 오르는 필라멘트(③에서 등장)
+  S.wraps = [];
+  const landed = S.parts.filter(p=>!p.swept);
+  for (let i=0;i<4;i++){
+    const pt = landed[Math.floor(rnd()*landed.length)];
+    const a0 = 2.6+rnd()*0.8, arc = 2.2+rnd()*0.8, n = 10;
+    const pts=[];
+    for (let k=0;k<n;k++){ const a=a0+arc*k/(n-1);
+      pts.push([Math.cos(a)*(pt.g.size+3.2), Math.sin(a)*(pt.g.size+3.2)]); }
+    S.wraps.push({ pt, pts, d:rnd()*0.3 });
   }
-  // 위로 성장하는 필라멘트
-  S.fils = [];
-  for (let i=0; i<5; i++){ const x=60+rnd()*(W-120);
-    S.fils.push({ x, y0:S.surf(x)-4, y1:S.newSurf(x)-2, ph:rnd()*6.28, d:rnd()*0.35 }); }
-  // 새 표면의 매트 세포
-  S.newCells = [];
-  for (let x=16; x<W-16; x+=10+rnd()*9)
-    S.newCells.push({ x, y:S.newSurf(x)-2-rnd()*3, r:2+rnd()*1.5, d:rnd()*0.7, ph:rnd()*6.28 });
-  // 탄산염 결정 — 입자 사이 공극과 매트 내부
+  // EPS 실: 입자마다 매트의 두세 지점과 연결
+  S.strands = [];
+  landed.forEach(pt => {
+    const n = 2+Math.floor(rnd()*2);
+    for (let k=0;k<n;k++){
+      const ax = pt.lx + (rnd()-0.5)*44;
+      S.strands.push({ pt, ax, ay:S.surf0(ax)-3, sag:6+rnd()*8, d:rnd()*0.35 });
+    }
+  });
+  // ④ 공극을 따라 위로 이동하는 남세균(개별 경로)
+  S.migr = [];
+  for (let i=0;i<6;i++){
+    const x = cx0 - AX*0.75 + (i+0.5)/6*AX*1.5 + (rnd()-0.5)*20;
+    const y0 = S.surf0(x)-3, y1 = S.newSurf(x)-2.5, dir = rnd()<0.5?-1:1;
+    const raw = [[x,y0],
+      [x+(rnd()-0.5)*22, lerp(y0,y1,0.4)],
+      [x+(rnd()-0.5)*22, lerp(y0,y1,0.78)],
+      [x+dir*6, y1],
+      [x+dir*22, y1+1], [x+dir*40, y1+0.5]];
+    S.migr.push({ path: smoothPath(raw,3), d:i*0.09+rnd()*0.06, r:3+rnd()*0.8, ph:rnd()*6.28 });
+  }
+  // 새 표면에 퍼지는 짧은 필라멘트
+  S.newFil = [];
+  for (let i=0;i<11;i++){
+    const x = cx0 - AX + rnd()*AX*2;
+    S.newFil.push({ x, y:S.newSurf(x)-2.5, ang:(rnd()-0.5)*0.5,
+      len: 28+rnd()*26, n: 9+Math.floor(rnd()*6), amp: 3+rnd()*3,
+      freq: 5+rnd()*4, ph: rnd()*6.28, spd: 0.9+rnd()*1.1, d: rnd()*0.6 });
+  }
+  // 공극(진한 반점) + 탄산염 결정 자리
+  S.pores = [];
+  for (let i=0;i<26;i++){
+    const x = cx0 - AX + rnd()*AX*2;
+    const yT = S.newSurf(x)+5, yB = S.surf0(x)-6;
+    S.pores.push({ x, y: lerp(yT,yB,rnd()), r: 3+rnd()*3 });
+  }
   S.crys = [];
-  for (let i=0; i<26; i++){ const x=30+rnd()*(W-60);
-    const yT=S.newSurf(x)+2, yB=S.surf(x)-2;
-    S.crys.push({ x, y:lerp(yT,yB,rnd()), s:2+rnd()*2.1, d:i/26*0.8, rot:rnd()*3.14 }); }
+  for (let i=0;i<20;i++){
+    const p = S.pores[Math.floor(rnd()*S.pores.length)];
+    const nv = 5+Math.floor(rnd()*2), verts=[];
+    const sz = 3.2+rnd()*2.4;
+    for (let k=0;k<nv;k++){ const a=k/nv*6.283+rnd()*0.4;
+      verts.push([Math.cos(a)*sz*(0.75+rnd()*0.4), Math.sin(a)*sz*(0.75+rnd()*0.4)]); }
+    S.crys.push({ x:p.x+(rnd()-0.5)*8, y:p.y+(rnd()-0.5)*6, verts, sz, d:i/20*0.75, rot:rnd()*3.14 });
+  }
+  // 미세한 진흙 입자(질감용)
+  S.fines = [];
+  for (let i=0;i<24;i++){
+    const lx = cx0 - AX + rnd()*AX*2;
+    S.fines.push({ lx, sx:lx-40+rnd()*80, sy:-10-rnd()*LH*0.4,
+      r:1.3+rnd()*1.6, d:rnd()*0.7, ph:rnd()*6.28 });
+  }
   return S;
 }
 
-/* ---------- 확대 관찰 장면 그리기 (단계 si, 진행도 p) ---------- */
-function drawMicro(ctx, S, si, p, t){
-  const {W,H} = S;
-  drawWater(ctx, W, H);
+/* ---------- 확대 장면 그리기 (단계 si, 진행도 p, s4p: ④ 빛 진행도) ---------- */
+function drawMicro(ctx, S, si, p, t, lf, s4p){
+  const {LH, SW, cx0} = S;
+  const AX0 = cx0 - S.LW*0.46, AX1 = cx0 + S.LW*0.46;
 
-  // 기질(오래된 해저 퇴적물)
-  ctx.beginPath(); ctx.moveTo(0,H);
-  for (let x=0; x<=W; x+=8) ctx.lineTo(x, S.surf(x));
-  ctx.lineTo(W,H); ctx.closePath();
-  ctx.fillStyle = '#b19878'; ctx.fill();
-  ctx.strokeStyle = 'rgba(90,70,45,.18)';
-  [20,38].forEach(dy => { ctx.beginPath();
-    for (let x=0; x<=W; x+=10){ const y=S.surf(x)+dy; x?ctx.lineTo(x,y):ctx.moveTo(x,y); }
-    ctx.stroke(); });
-
-  const wig = RM ? 0 : Math.sin(t*2);
-
-  // --- 점액질(EPS) ---
-  const epsA = si===0 ? null : (si>=3 ? 0.45 : 1);
-  S.eps.forEach(e => {
-    const a = si===0 ? ease((p-e.d)/0.6) : epsA;
-    if (a<=0.01) return;
-    const g = ctx.createRadialGradient(e.x,e.y,1, e.x,e.y,e.rx);
-    g.addColorStop(0,`rgba(215,232,150,${0.5*a})`); g.addColorStop(1,'rgba(215,232,150,0)');
-    ctx.fillStyle = g;
-    ctx.beginPath(); ctx.ellipse(e.x, e.y, e.rx*(si===0?a:1), e.ry, 0, 0, 6.283); ctx.fill();
+  // --- 오래된 기질: 바탕 + 촘촘한 입자 + 공극 ---
+  const sg = ctx.createLinearGradient(0, LH*0.7, 0, LH+160);
+  sg.addColorStop(0, PAL.mudTop); sg.addColorStop(1, '#6b5840');
+  ctx.beginPath(); ctx.moveTo(-80, LH+240);
+  for (let x=-80; x<=SW+80; x+=10) ctx.lineTo(x, S.surf0(x));
+  ctx.lineTo(SW+80, LH+240); ctx.closePath();
+  ctx.fillStyle = sg; ctx.fill();
+  S.subGrains.forEach(o => {
+    const y = S.surf0(o.x) + o.dy;
+    if (y < LH+230) drawGrain(ctx, o.g, o.x, y, o.rot, 0.85, 0);
   });
+  // 기질 속 오래된 매트의 얇은 흔적
+  ctx.save(); ctx.strokeStyle='rgba(96,96,66,.4)'; ctx.lineWidth=2; ctx.setLineDash([7,9]);
+  ctx.beginPath();
+  for (let x=-40;x<=SW+40;x+=12){ const y=S.surf0(x)+34; x>-40?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+  ctx.stroke(); ctx.restore();
 
-  // --- 처음의 미생물 매트 ---
-  const oldDead = si>=3;
-  const deadA = si===3 ? lerp(1,0.55,ease(p*1.4)) : (si>3 ? 0.55 : 1);
-  S.cells.forEach((c,i) => {
-    const a = si===0 ? ease((p-c.d)/0.5) : 1;
-    if (a<=0.01) return;
-    ctx.globalAlpha = a * (oldDead ? deadA : 1);
-    const col = oldDead ? '#5d6152' : (i%2 ? '#2e8b6e' : '#4f9a49');
-    if (c.fil){
-      ctx.strokeStyle = col; ctx.lineWidth = 1.6; ctx.beginPath();
-      ctx.moveTo(c.x, c.y+3);
-      ctx.quadraticCurveTo(c.x + wig*2.4, c.y-c.len*0.5, c.x + wig*3.6, c.y-c.len);
-      ctx.stroke();
-    } else {
-      ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(c.x, c.y, c.r, c.r*0.8, 0, 0, 6.283); ctx.fill();
-    }
-  });
-  ctx.globalAlpha = 1;
+  const buried = si>=3;
+  const oldA = buried ? (si===3 ? lerp(1,0.5,ease(Math.max(p, s4p)*1.6)) : 0.5) : 1;
 
-  // --- 옛 표면 점선 표시 (④부터) ---
-  if (si>=3){
-    const prog = si===3 ? ease(p*1.5) : 1;
-    ctx.save(); ctx.setLineDash([5,4]); ctx.strokeStyle='rgba(70,62,45,.65)'; ctx.lineWidth=1.4;
+  // --- EPS 젤 리본(매트 표면을 덮는 반투명 점액층) ---
+  const gelP = si===0 ? ease((p-0.25)/0.6) : 1;
+  if (gelP > 0.02){
+    ctx.save(); ctx.globalAlpha = 0.18*gelP*(buried?0.5:1);
+    ctx.strokeStyle = '#d3e296'; ctx.lineWidth = 16; ctx.lineCap='round';
     ctx.beginPath();
-    const xe = W*prog;
-    for (let x=0; x<=xe; x+=8){ const y=S.surf(x)-5; x?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+    for (let x=AX0; x<=AX1; x+=10){ const y=S.surf0(x)-4; x>AX0?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+    ctx.stroke();
+    ctx.globalAlpha = 0.14*gelP*(buried?0.5:1); ctx.lineWidth = 8; ctx.strokeStyle = '#e4eeb2';
     ctx.stroke(); ctx.restore();
   }
 
-  // --- 퇴적물 덮개(고운 진흙 기질) : ③에서 서서히 ---
-  if (si>=2){
-    const cp = si===2 ? ease(p) : 1;
-    ctx.beginPath();
-    for (let x=0; x<=W; x+=8){
-      const y = lerp(S.surf(x)-5, S.newSurf(x), cp);
-      x?ctx.lineTo(x,y):ctx.moveTo(x,y);
-    }
-    for (let x=W; x>=0; x-=8) ctx.lineTo(x, S.surf(x)-4);
-    ctx.closePath(); ctx.fillStyle = `rgba(158,124,84,${0.55*cp})`; ctx.fill();
-  }
-
-  // --- 퇴적물 입자 ---
-  S.parts.forEach(pt => {
-    let x, y, a = 1;
-    if (si < 1) return;
-    if (si === 1){                                   // ② 내려오는 중 (표면 근처에서 느려짐)
-      const q = ease((p*1.2 - pt.d)/0.7);
-      if (q<=0) return;
-      const hy = pt.swept ? pt.ly-26 : pt.ly-12;
-      x = lerp(pt.sx, pt.lx, q) + Math.sin(t*1.6+pt.ph)*4*(1-q) + (pt.swept? q*30 : 0);
-      y = lerp(pt.sy, hy, q);
-    } else if (si === 2){                            // ③ 포획 또는 쓸려감
-      const q = ease((p - pt.sd)/0.5);
-      if (pt.swept){
-        x = pt.lx + 30 + q*(W*0.5); y = pt.ly-26 + Math.sin(t*2+pt.ph)*3;
-        a = 1 - ease((x-(W-60))/60);
-        if (a<=0.01) return;
-      } else { x = pt.lx; y = lerp(pt.ly-12, pt.ly, q); }
-    } else {                                         // ④~ 자리에 고정
-      if (pt.swept) return;
-      x = pt.lx; y = pt.ly;
-    }
-    ctx.save(); ctx.translate(x,y); ctx.globalAlpha = a;
-    ctx.fillStyle = `rgb(${140+pt.hue*40|0},${104+pt.hue*30|0},${70+pt.hue*22|0})`;
-    ctx.beginPath(); pt.verts.forEach((v,k)=> k?ctx.lineTo(v[0],v[1]):ctx.moveTo(v[0],v[1]));
-    ctx.closePath(); ctx.fill();
-    if (si>=4){                                     // ⑤ 결정이 늘며 입자 고정(윤곽 진해짐)
-      ctx.globalAlpha = a * (si===4 ? p : 1) * 0.5;
-      ctx.strokeStyle = '#5f4c33'; ctx.lineWidth = 1; ctx.stroke();
-    }
-    ctx.restore();
-    // ③ 점액질이 입자를 감싸는 모습
-    if (si===2 && !pt.swept){
-      const q = ease((p - pt.sd - 0.25)/0.4);
-      if (q>0){
-        ctx.save(); ctx.globalAlpha = q*0.85;
-        ctx.strokeStyle = 'rgba(206,224,140,.95)'; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(x, y, pt.size+2.5, pt.ph, pt.ph + 4.6*q); ctx.stroke();
-        ctx.restore();
-      }
-    }
+  // --- 처음의 매트 필라멘트 ---
+  S.fil.forEach(f => {
+    const grow = si===0 ? ease((p-f.d)/0.55) : 1;
+    if (grow<=0.02) return;
+    drawChain(ctx, spinePts(f, t, grow), 3.3, !buried, (si===0?grow:1)*oldA, !buried, f.ph);
   });
 
-  // --- ④ 이동·성장하는 미생물, 새 매트 ---
-  if (si>=3){
-    if (si===3){
-      S.migrants.forEach(m => {
-        const q = ease((p - m.d)/0.55);
-        if (q<=0 || q>=1) return;
-        const seg=(m.path.length-1)*q, i=Math.min(m.path.length-2, Math.floor(seg)), f=seg-i;
-        const x=lerp(m.path[i][0], m.path[i+1][0], f), y=lerp(m.path[i][1], m.path[i+1][1], f);
-        ctx.fillStyle='#2e8b6e';
-        ctx.beginPath(); ctx.ellipse(x+wig*1.5, y, m.r, m.r*0.8, 0, 0, 6.283); ctx.fill();
-        ctx.globalAlpha=0.3; ctx.strokeStyle='#2e8b6e'; ctx.lineWidth=1;
-        ctx.beginPath(); ctx.moveTo(x, y+6); ctx.lineTo(x, y+14); ctx.stroke(); ctx.globalAlpha=1;
-      });
-    }
-    S.fils.forEach(fl => {
-      const q = si===3 ? ease((p - fl.d)/0.6) : 1;
-      if (q<=0) return;
-      ctx.save(); ctx.globalAlpha = 0.55;
-      ctx.strokeStyle = '#3d9070'; ctx.lineWidth = 1.5; ctx.beginPath();
-      const ye = lerp(fl.y0, fl.y1, q);
-      ctx.moveTo(fl.x, fl.y0);
-      ctx.quadraticCurveTo(fl.x + wig*2 + 3, (fl.y0+ye)/2, fl.x + wig*1.5, ye);
-      ctx.stroke(); ctx.restore();
-    });
-    S.newCells.forEach((c,i) => {
-      const a = si===3 ? ease((p-0.5-c.d*0.45)/0.35) : 1;
-      if (a<=0.01) return;
-      ctx.globalAlpha = a;
-      ctx.fillStyle = i%2 ? '#2e8b6e' : '#4f9a49';
-      ctx.beginPath(); ctx.ellipse(c.x, c.y + (RM?0:Math.sin(t*2+c.ph))*0.6, c.r, c.r*0.8, 0, 0, 6.283); ctx.fill();
-    });
-    ctx.globalAlpha = 1;
+  // --- 옛 표면 점선 (④부터) ---
+  if (buried){
+    const prog = si===3 ? ease(Math.max(p, s4p)*1.6) : 1;
+    ctx.save(); ctx.setLineDash([6,5]); ctx.strokeStyle='rgba(66,60,42,.6)'; ctx.lineWidth=1.4;
+    ctx.beginPath();
+    const xe = AX0 + (AX1-AX0)*prog;
+    for (let x=AX0; x<=xe; x+=10){ const y=S.surf0(x)-6; x>AX0?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+    ctx.stroke(); ctx.restore();
   }
 
-  // --- ⑤ 탄산염 결정 ---
+  // --- 퇴적물 덮개(고운 진흙 기질, 공극 유지) : ③에서 서서히 ---
+  if (si>=2){
+    const cp = si===2 ? ease((p-0.15)/0.8) : 1;
+    if (cp>0.02){
+      const mg = ctx.createLinearGradient(0, LH*0.5, 0, LH*0.8);
+      mg.addColorStop(0, PAL.mudTop); mg.addColorStop(1, PAL.mudBot);
+      ctx.save(); ctx.globalAlpha = 0.9*cp;
+      ctx.beginPath();
+      for (let x=-40;x<=SW+40;x+=10){
+        const y = lerp(S.surf0(x)-6, S.newSurf(x), cp);
+        x>-40?ctx.lineTo(x,y):ctx.moveTo(x,y);
+      }
+      for (let x=SW+40;x>=-40;x-=10) ctx.lineTo(x, S.surf0(x)+4);
+      ctx.closePath(); ctx.fillStyle = mg; ctx.fill();
+      ctx.restore();
+      // 공극(입자 사이 빈틈)
+      ctx.save(); ctx.fillStyle='rgba(58,44,28,.28)';
+      S.pores.forEach(po => {
+        ctx.globalAlpha = 0.9*cp;
+        ctx.beginPath(); ctx.ellipse(po.x, po.y, po.r*1.2, po.r*0.8, 0, 0, 6.283); ctx.fill();
+      });
+      ctx.restore();
+    }
+  }
+
+  // --- EPS 실: 입자를 매트와 연결 (③) ---
+  if (si===2){
+    S.strands.forEach(st => {
+      const q = ease((p - st.pt.sd - 0.1)/0.45);
+      if (q<=0.02) return;
+      const gx = st.pt.lx, gy = st.pt.ly + st.pt.g.size*0.6;
+      const mx = lerp(st.ax, gx, 0.5), my = Math.max(st.ay, gy) + st.sag*(1.3-q*0.6);
+      ctx.save(); ctx.globalAlpha = 0.55*q;
+      ctx.strokeStyle = '#c7d98a'; ctx.lineWidth = 1.5; ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(st.ax, st.ay);
+      ctx.quadraticCurveTo(mx, my, lerp(st.ax,gx,q), lerp(st.ay,gy,q));
+      ctx.stroke(); ctx.restore();
+    });
+  }
+
+  // --- 주요 퇴적물 입자 ---
+  S.parts.forEach(pt => {
+    if (si < 1) return;
+    let x, y, rot, a = 1, sh = 0;
+    if (si === 1){                              // ② 내려오는 중(표면 근처에서 감속)
+      const q = ease((p*1.15 - pt.d)/0.62);
+      if (q<=0) return;
+      const hx = pt.swept ? pt.lx+20 : pt.lx, hy = pt.swept ? pt.ly-30 : pt.ly-13;
+      const sx = pt.fromSide ? -60 : pt.sx;
+      const sy = pt.fromSide ? pt.ly-90 : pt.sy;
+      x = lerp(sx, hx, easeOut(q)) + Math.sin(t*1.4+pt.ph)*4*(1-q);
+      y = lerp(sy, hy, q*q*(3-2*q));
+      rot = pt.g.rot0 + q*pt.g.spin;
+    } else if (si === 2){                        // ③ 포획(흔들리다 정지) 또는 쓸려감
+      const q = (p - pt.sd)/0.5;
+      if (pt.swept){                             // 곡선 경로 + 잔상으로 쓸려감
+        if (q <= 0) return;
+        const qq = ease(q);
+        const x0=pt.lx+20, y0=pt.ly-30;
+        const bez = tt => [ (1-tt)*(1-tt)*x0 + 2*(1-tt)*tt*(x0+120) + tt*tt*(SW+80),
+                            (1-tt)*(1-tt)*y0 + 2*(1-tt)*tt*(y0-26) + tt*tt*(y0-6) ];
+        for (let k=3;k>=1;k--){
+          const bp = bez(Math.max(0,qq-k*0.05));
+          drawGrain(ctx, pt.g, bp[0], bp[1], pt.g.rot0+qq*4, 0.13*(4-k), 0);
+        }
+        const bp = bez(qq);
+        if (bp[0] < SW+60) drawGrain(ctx, pt.g, bp[0], bp[1], pt.g.rot0+qq*4, 1-clamp01((bp[0]-SW+40)/80), 0);
+        return;
+      }
+      const qe = ease(q);
+      x = pt.lx; rot = pt.g.rot0 + pt.g.spin + qe*0.4;
+      y = lerp(pt.ly-13, pt.ly, qe);
+      if (q > 1) y += Math.exp(-(q-1)*5.5)*Math.sin((q-1)*26)*2.4;  // 붙잡힌 뒤 잔진동
+      sh = qe;
+    } else {                                     // ④~ 매트 속에 고정
+      if (pt.swept) return;
+      x = pt.lx; y = pt.ly; rot = pt.g.rot0 + pt.g.spin + 0.4; sh = 1;
+    }
+    drawGrain(ctx, pt.g, x, y, rot, a, sh);
+    if (si>=4){                                  // ⑤ 결정이 늘며 입자 윤곽 고정
+      ctx.save(); ctx.globalAlpha = (si===4?ease(p):1)*0.4;
+      ctx.translate(x,y); ctx.rotate(rot);
+      ctx.strokeStyle='#4d3a22'; ctx.lineWidth=1.1;
+      ctx.beginPath(); pt.g.verts.forEach((v,k)=>k?ctx.lineTo(v[0],v[1]):ctx.moveTo(v[0],v[1]));
+      ctx.closePath(); ctx.stroke(); ctx.restore();
+    }
+  });
+  // 입자를 감싸는 필라멘트(③ 후반부터)
+  if (si>=2){
+    S.wraps.forEach(w => {
+      const q = si===2 ? ease((p-0.55-w.d)/0.35) : 1;
+      if (q<=0.02) return;
+      const n = Math.max(2, Math.round(w.pts.length*q));
+      const pts = w.pts.slice(0,n).map(v => [w.pt.lx+v[0], w.pt.ly+v[1]]);
+      drawChain(ctx, pts, 2.8, !buried, (buried?oldA:1), false, w.d*6);
+    });
+  }
+
+  // --- 미세한 진흙 입자(②~③에서 흩날리며 내려앉음) ---
+  if (si===1 || si===2){
+    ctx.save(); ctx.fillStyle='rgba(150,120,84,.7)';
+    S.fines.forEach(fn => {
+      const q = ease(((si===1?p*1.1:1+p) - fn.d)/0.9);
+      if (q<=0 || q>=1) return;
+      const x = lerp(fn.sx, fn.lx, q) + Math.sin(t*2+fn.ph)*5*(1-q);
+      const y = lerp(fn.sy, S.surf0(fn.lx)-8, q);
+      ctx.globalAlpha = 0.7*(1-q*0.5);
+      ctx.beginPath(); ctx.arc(x, y, fn.r, 0, 6.283); ctx.fill();
+    });
+    ctx.restore();
+  }
+
+  // --- ④ 공극을 따라 이동·성장하는 남세균 + 새 매트 ---
+  if (si>=3){
+    const p4 = si===3 ? s4p : 1;
+    S.migr.forEach(m => {
+      const q = ease((p4 - m.d)/0.6);
+      if (q<=0.02) return;
+      const W = 0.34;                            // 사슬이 차지하는 경로 구간
+      const head = q*(1+W);
+      const pts=[];
+      for (let k=0;k<10;k++)
+        pts.push(samplePath(m.path, head - W + W*k/9));
+      // 미세한 미끄러짐 흔들림
+      for (let k=0;k<pts.length;k++) pts[k][0] += Math.sin(t*2+m.ph+k)*0.8;
+      drawChain(ctx, pts, m.r, true, Math.min(1,q*3), true, m.ph);
+    });
+    S.newFil.forEach(f => {
+      const grow = si===3 ? ease((p4-0.55-f.d*0.4)/0.4) : 1;
+      if (grow<=0.02) return;
+      drawChain(ctx, spinePts(f, t, grow), 3.2, true, grow, true, f.ph);
+    });
+    if (p4 > 0.6){                               // 새 표면의 EPS 리본
+      const ga = clamp01((p4-0.6)/0.4);
+      ctx.save(); ctx.globalAlpha = 0.15*ga;
+      ctx.strokeStyle = '#d3e296'; ctx.lineWidth = 11; ctx.lineCap='round';
+      ctx.beginPath();
+      for (let x=AX0;x<=AX1;x+=10){ const y=S.newSurf(x)-4; x>AX0?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+      ctx.stroke(); ctx.restore();
+    }
+    if (p4 > 0.75)
+      drawBubbles(ctx, t, lf, AX0, AX1, x=>S.newSurf(x)-4, 7, 11);
+  } else if (si===0 && p>0.6){
+    drawBubbles(ctx, t, lf, AX0, AX1, x=>S.surf0(x)-6, 6, 3);
+  }
+
+  // --- ⑤ 탄산염 결정(공극 속에서 성장) ---
   if (si>=4){
     S.crys.forEach(c => {
-      const q = si===4 ? ease((p - c.d)/0.25) : 1;
-      if (q<=0) return;
+      const q = si===4 ? ease((p - c.d)/0.3) : 1;
+      if (q<=0.02) return;
       ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.rot); ctx.scale(q,q);
-      ctx.fillStyle = '#f6f1df'; ctx.strokeStyle = '#c8bb92'; ctx.lineWidth = 0.8;
-      ctx.beginPath(); ctx.moveTo(0,-c.s); ctx.lineTo(c.s*0.8,0); ctx.lineTo(0,c.s); ctx.lineTo(-c.s*0.8,0);
+      const cg = ctx.createLinearGradient(-c.sz,-c.sz,c.sz,c.sz);
+      cg.addColorStop(0,'#fbf7ea'); cg.addColorStop(1,'#e2d7b4');
+      ctx.fillStyle = cg; ctx.strokeStyle = PAL.crysEdge; ctx.lineWidth = 0.7;
+      ctx.beginPath(); c.verts.forEach((v,k)=>k?ctx.lineTo(v[0],v[1]):ctx.moveTo(v[0],v[1]));
       ctx.closePath(); ctx.fill(); ctx.stroke();
-      if (si===4){                                  // 나타날 때 반짝임
-        const fl = 1 - clamp01((p - c.d)*5);
-        if (fl>0){ ctx.globalAlpha = fl; ctx.strokeStyle='#fffbe8'; ctx.lineWidth=1;
-          ctx.beginPath(); ctx.moveTo(-c.s*2,0); ctx.lineTo(c.s*2,0);
-          ctx.moveTo(0,-c.s*2); ctx.lineTo(0,c.s*2); ctx.stroke(); }
+      ctx.strokeStyle='rgba(255,255,255,.75)'; ctx.lineWidth=0.6;      // 결정면
+      ctx.beginPath(); ctx.moveTo(c.verts[0][0],c.verts[0][1]); ctx.lineTo(c.verts[2][0],c.verts[2][1]); ctx.stroke();
+      if (si===4){
+        const fl = 1 - clamp01((p - c.d)*4);
+        if (fl>0){ ctx.globalAlpha=fl*0.8; ctx.strokeStyle='#fffbe8'; ctx.lineWidth=0.9;
+          ctx.beginPath(); ctx.moveTo(-c.sz*1.8,0); ctx.lineTo(c.sz*1.8,0);
+          ctx.moveTo(0,-c.sz*1.8); ctx.lineTo(0,c.sz*1.8); ctx.stroke(); }
       }
       ctx.restore();
     });
   }
 
-  // --- ⑥ 완성된 얇은 층 강조 ---
+  // --- ⑥ 완성된 얇은 층: 얇은 경계 + 은은한 음영 ---
   if (si===5){
-    const a = ease(p) * (0.55 + (RM?0:0.15*Math.sin(t*2.5)));
+    const a = ease(p);
     ctx.save();
+    ctx.globalAlpha = 0.08*a;
     ctx.beginPath();
-    for (let x=0; x<=W; x+=8){ const y=S.newSurf(x)-5; x?ctx.lineTo(x,y):ctx.moveTo(x,y); }
-    for (let x=W; x>=0; x-=8) ctx.lineTo(x, S.surf(x)-4);
-    ctx.closePath();
-    ctx.fillStyle = `rgba(233,182,74,${0.16*a})`; ctx.fill();
-    ctx.strokeStyle = `rgba(201,150,46,${0.8*a})`; ctx.lineWidth = 1.6;
-    [x=>S.newSurf(x)-5, x=>S.surf(x)-4].forEach(fn => {
+    for (let x=-40;x<=SW+40;x+=10){ const y=S.newSurf(x)-6; x>-40?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+    for (let x=SW+40;x>=-40;x-=10) ctx.lineTo(x, S.surf0(x)-4);
+    ctx.closePath(); ctx.fillStyle='#f4d98b'; ctx.fill();
+    ctx.globalAlpha = 0.7*a; ctx.strokeStyle='rgba(201,150,46,.9)'; ctx.lineWidth=1.4;
+    [x=>S.newSurf(x)-6, x=>S.surf0(x)-4].forEach(fn => {
       ctx.beginPath();
-      for (let x=0; x<=W; x+=8){ const y=fn(x); x?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+      for (let x=-40;x<=SW+40;x+=10){ const y=fn(x); x>-40?ctx.lineTo(x,y):ctx.moveTo(x,y); }
       ctx.stroke();
     });
     ctx.restore();
+    drawBubbles(ctx, t, lf, AX0, AX1, x=>S.newSurf(x)-4, 6, 11);
   }
+  if (si===4) drawBubbles(ctx, t, lf, AX0, AX1, x=>S.newSurf(x)-4, 6, 11);
 
-  // --- 단계별 표지(최대 3개) ---
+  // --- 표지(작게, 대상 가까이, 필요한 순간에만) ---
   const L = (txt,ax,ay,dx,dy,a)=>drawLabel(ctx,txt,ax,ay,ax+dx,ay+dy,a);
   if (si===0){
-    L('미생물 매트(남세균 포함)', W*0.22, S.surf(W*0.22)-8, -30, -46, ease(p*2-0.4));
-    L('점액질(EPS)', W*0.62, S.surf(W*0.62)-8, 40, -60, ease(p*2-1));
+    const f0=S.fil[2];
+    L('남세균 필라멘트', f0.x+f0.len*0.5, f0.y-4, -14, -34, labWin(p,0.3,2));
+    L('점액질(EPS)', cx0+S.LW*0.24, S.surf0(cx0+S.LW*0.24)-6, 22, -30, labWin(p,0.62,2));
   } else if (si===1){
-    L('퇴적물 입자(진흙·모래)', W*0.4, H*0.3, 60, -40, ease(p*2.5-0.3));
+    const pt=S.parts[1];
+    L('퇴적물 입자', pt.lx, pt.ly-40, 26, -26, labWin(p,0.45,0.95));
   } else if (si===2){
-    L('점액질이 입자를 붙잡음', W*0.3, S.surf(W*0.3)-14, -30, -52, ease(p*1.6-0.5));
+    const pt=S.parts.find(q=>!q.swept && Math.abs(q.lx-cx0)<S.LW*0.28) || S.parts.find(q=>!q.swept);
+    L('점액질 실이 입자를 붙잡음', pt.lx, pt.ly-4, -20, -40, labWin(p,0.45,2));
   } else if (si===3){
-    L('옛 표면', W*0.76, S.surf(W*0.76)-5, 34, -40, ease(p*2-0.5));
-    L('새 매트', W*0.3, S.newSurf(W*0.3)-4, -30, -46, ease(p*2-1.3));
+    if (s4p<=0.02){
+      L('묻힌 남세균', cx0-S.LW*0.2, S.surf0(cx0-S.LW*0.2)-8, -18, -34, 1);
+    } else {
+      L('옛 표면', cx0+S.LW*0.34, S.surf0(cx0+S.LW*0.34)-6, 22, -26, labWin(s4p,0.15,2)*0.85);
+      L('공극을 따라 이동', S.migr[2].path[2][0], S.migr[2].path[2][1], -26, -30, labWin(s4p,0.25,0.7));
+      L('새 매트', cx0-S.LW*0.25, S.newSurf(cx0-S.LW*0.25)-6, -16, -28, labWin(s4p,0.78,2));
+    }
   } else if (si===4){
-    L('탄산염 결정', W*0.55, (S.surf(W*0.55)+S.newSurf(W*0.55))/2-4, 50, -55, ease(p*2-0.4));
+    const c=S.crys[4];
+    L('탄산염 결정', c.x, c.y, 24, -32, labWin(p,0.35,2));
   } else if (si===5){
-    L('얇은 층 1개', W*0.18, (S.surf(W*0.18)+S.newSurf(W*0.18))/2-5, -20, -50, ease(p*1.6));
+    const mx=cx0-S.LW*0.3;
+    L('얇은 층 1개', mx, (S.surf0(mx)+S.newSurf(mx))/2-4, -16, -32, labWin(p,0.3,2));
   }
-}
-
-/* ---------- 전체 모습 안내창(오른쪽 위) ---------- */
-function drawInset(ctx, W, H){
-  const iw = Math.min(216, W*0.3), ih = iw*0.56, x0 = W-iw-12, y0 = 12;
-  ctx.save();
-  ctx.beginPath(); ctx.roundRect(x0,y0,iw,ih,10); ctx.clip();
-  const g = ctx.createLinearGradient(0,y0,0,y0+ih);
-  g.addColorStop(0,'#d6edf7'); g.addColorStop(1,'#8fc0da');
-  ctx.fillStyle=g; ctx.fillRect(x0,y0,iw,ih);
-  const bY = y0+ih*0.82;
-  ctx.fillStyle='#b19878'; ctx.fillRect(x0,bY,iw,ih);
-  // 완만한 스트로마톨라이트 돔
-  const cx = x0+iw*0.52, R = iw*0.26, hh = ih*0.34;
-  for (let i=3;i>=0;i--){
-    const f=(i+1)/4;
-    ctx.beginPath(); ctx.ellipse(cx,bY,R*f,hh*f,0,Math.PI,0);
-    ctx.closePath();
-    ctx.fillStyle = ['#8d7a64','#c9bda1','#9b7d57','#a9906c'][i]; ctx.fill();
-  }
-  ctx.strokeStyle='#2e8b6e'; ctx.lineWidth=2;
-  ctx.beginPath(); ctx.ellipse(cx,bY,R,hh,0,Math.PI*1.05,Math.PI*1.95); ctx.stroke();
-  // 확대 중인 부분 표시
-  const zr = { x:cx-R*0.5, y:bY-hh-4, w:R, h:hh*0.62 };
-  ctx.strokeStyle='#c9962e'; ctx.lineWidth=2;
-  ctx.strokeRect(zr.x, zr.y, zr.w, zr.h);
-  ctx.font='500 11px "IBM Plex Sans KR",sans-serif';
-  ctx.fillStyle='rgba(36,54,64,.85)'; ctx.fillText('전체 모습', x0+8, y0+16);
-  ctx.restore();
-  // 확대 연결선(사각형 → 본 화면)
-  ctx.save(); ctx.strokeStyle='rgba(201,150,46,.6)'; ctx.lineWidth=1.5;
-  ctx.beginPath(); ctx.moveTo(zr.x, zr.y); ctx.lineTo(x0-40, y0+4);
-  ctx.moveTo(zr.x, zr.y+zr.h); ctx.lineTo(x0-40, y0+ih+30); ctx.stroke();
-  ctx.font='500 11.5px "IBM Plex Sans KR",sans-serif'; ctx.fillStyle='rgba(36,54,64,.75)';
-  ctx.fillText('◀ 이 부분을 확대 중', x0-118, y0+ih+8);
-  ctx.restore();
-  ctx.strokeStyle='rgba(255,255,255,.8)'; ctx.lineWidth=2;
-  ctx.beginPath(); ctx.roundRect(x0,y0,iw,ih,10); ctx.stroke();
 }
 
 /* ============================================================
@@ -577,8 +832,8 @@ function drawInset(ctx, W, H){
 const MACRO_REPS = 12, MACRO_START = 2;
 function buildMacro(W, H){
   const rnd = mulberry32(4242);
-  const cols = ['#9b7d57','#8d7a64','#d3c7ab','#93815f','#c9bda1','#7f7052'];
-  const M = { W, H, cx:W*0.52, baseY:H*0.84, R:Math.min(W*0.3, 280), reps:[] };
+  const cols = ['#9b7d57','#8d7a64','#d3c7ab','#93815f','#c9bda1','#7f7052','#a3906a'];
+  const M = { W, H, cx:W*0.52, baseY:H*0.84, R:Math.min(W*0.3, 300), reps:[] };
   let prev = -1;
   for (let i=0; i<MACRO_REPS; i++){
     let ci; do { ci = Math.floor(rnd()*cols.length); } while (ci===prev);
@@ -587,25 +842,24 @@ function buildMacro(W, H){
       a1:rnd()*6.28, a2:rnd()*6.28, col:cols[ci] });
   }
   const sumT = M.reps.reduce((a,r)=>a+r.t*1.2, 0);
-  M.k = Math.min(1, H*0.52/sumT);       // 화면에 맞는 배율
+  M.k = Math.min(1, H*0.5/sumT);
   return M;
 }
-function macroThick(M, r, u){           // 층 하나의 두께(위치 u에 따라 자연스럽게 변함)
+function macroThick(M, r, u){
   const env = Math.pow(Math.max(0, 1-u*u), 0.8);
   const wob = 1 + r.w*(Math.sin(u*r.f1+r.a1)*0.6 + Math.sin(u*r.f2+r.a2)*0.4);
   return Math.max(0, r.t * env * wob * M.k);
 }
 function drawMacro(ctx, M, visible, curP, t){
   const {W,H,cx,baseY,R} = M;
-  drawWater(ctx, W, H);
   ctx.fillStyle = '#b19878'; ctx.fillRect(0, baseY, W, H-baseY);
   ctx.fillStyle = 'rgba(120,98,64,.5)';
   [[0.14,7],[0.3,5],[0.8,8],[0.92,5]].forEach(([fx,r])=>{
     ctx.beginPath(); ctx.ellipse(W*fx, baseY+8, r*1.5, r, 0, 0, 6.283); ctx.fill(); });
 
-  const NX = 72, xs = [], cum = new Array(NX+1).fill(0);
+  const NX = 76, xs = [], cum = new Array(NX+1).fill(0);
   for (let j=0;j<=NX;j++) xs.push(cx - R + (2*R)*(j/NX));
-  let topPts = xs.map(x=>baseY);
+  let topPts = xs.map(()=>baseY);
   for (let i=0; i<visible; i++){
     const r = M.reps[i], f = (i===visible-1 && curP<1) ? ease(curP) : 1;
     const newTop = [];
@@ -619,131 +873,198 @@ function drawMacro(ctx, M, visible, curP, t){
     for (let j=NX;j>=0;j--) ctx.lineTo(xs[j], topPts[j]);
     ctx.closePath(); ctx.fillStyle = r.col; ctx.fill();
     ctx.strokeStyle='rgba(60,45,25,.12)'; ctx.lineWidth=1; ctx.stroke();
+    // 층 속 퇴적물 입자의 미세한 질감
+    ctx.save(); ctx.fillStyle='rgba(60,45,25,.16)';
+    for (let k=0;k<16;k++){
+      const u = hash(i*31+k)*1.7-0.85, fr = hash(i*57+k*3);
+      const j = Math.round((u+1)/2*NX);
+      const y = lerp(topPts[j], newTop[j], fr);
+      ctx.beginPath(); ctx.arc(xs[j], y, 0.9+hash(i+k)*1.1, 0, 6.283); ctx.fill();
+    }
+    ctx.restore();
     topPts = newTop;
   }
-  // 살아 있는 미생물 매트: 가장 위 표면에만
-  ctx.strokeStyle = '#2e8b6e'; ctx.lineWidth = 3; ctx.lineCap='round';
-  ctx.beginPath();
-  for (let j=0;j<=NX;j++) j?ctx.lineTo(xs[j],topPts[j]-1):ctx.moveTo(xs[j],topPts[j]-1);
-  ctx.stroke();
-  // 잔잔히 내려오는 퇴적물 입자
+  // 살아 있는 매트: 가장 위 표면에만(구슬 사슬 질감)
+  ctx.save();
+  for (let j=0;j<=NX;j+=1){
+    ctx.fillStyle = j%2 ? PAL.matA : PAL.matB;
+    ctx.beginPath(); ctx.arc(xs[j], topPts[j]-1.5, 1.9, 0, 6.283); ctx.fill();
+  }
+  ctx.restore();
   if (!RM){
     ctx.fillStyle='rgba(120,95,60,.4)';
     for (let i=0;i<10;i++){
-      const x=(i*127+t*26)%W, y=(i*67+t*34)%(baseY*0.62);
+      const x=(i*127+t*26)%W, y=(i*67+t*34)%(baseY*0.6);
       ctx.beginPath(); ctx.arc(x,y,1.8,0,6.283); ctx.fill();
     }
   }
-  drawLabel(ctx,'살아 있는 미생물 매트(표면)', cx+R*0.55, topPts[Math.round(NX*0.78)]-2, cx+R*0.55+50, topPts[Math.round(NX*0.78)]-46, 1);
 }
 
 /* ============================================================
    탭 1 — 진행 제어
    ============================================================ */
-let mode = 'STEP';      // 'STEP' | 'REPEAT'
-let idx = 0;            // 현재 단계 번호
-let clock = 0;          // 현재 단계의 경과 시간(ms) — 일시정지 시 멈춤
-let amb = 0;            // 잔잔한 움직임용 시간(s)
-let playing = true;
-let finished = false;   // 현재 단계 애니메이션 종료 여부
+let mode = 'INTRO';      // 'INTRO' | 'STEP' | 'REPEAT'
+let idx = 0;
+let clock = 0, amb = 0;
+let playing = false;
+let finished = false;
+let sunOn = false;       // ④ 햇빛 상태
+let litClock = 0;        // ④ 빛을 비춘 뒤 경과(ms)
+let s4max = 0;           // ④ 도달한 최대 진행도(빛을 꺼도 유지)
+let lightF = 1;          // 화면 밝기(부드럽게 추적)
 let scene = null, macro = null;
 const cv1 = $('cv1'), ctx1 = cv1.getContext('2d');
 
 const chipsEl = $('stepChips');
-STEPS.forEach((s,i) => {
+STEPS.forEach(s => {
   const d = document.createElement('div');
   d.className='stepChip'; d.innerHTML=`<b>${s.no}</b> ${s.name}`;
   chipsEl.appendChild(d);
 });
 
 function stepDur(i){ return RM ? 1 : STEPS[i].dur; }
+function s4prog(){ return idx===3 ? Math.max(s4max, RM&&sunOn?1:Math.min(1, litClock/stepDur(3))) : 0; }
 
-function refreshUi(){
-  const chips = chipsEl.children;
-  for (let i=0;i<chips.length;i++)
-    chips[i].className = 'stepChip' + (mode==='REPEAT' ? ' done' : i<idx ? ' done' : i===idx ? ' cur' : '');
+function setTexts(){
   const info = mode==='REPEAT' ? REPEAT_INFO : STEPS[idx];
   $('stepName').textContent = (mode==='REPEAT' ? '⟳ ' : info.no+' ') + info.name + ' — ';
-  $('stepCap').textContent = mode==='REPEAT' ? (finished ? info.capEnd : info.capRun) : info.cap;
-  $('whyBox').hidden = true; $('btnWhy').setAttribute('aria-expanded','false');
+  let cap = info.cap;
+  if (mode==='REPEAT') cap = finished ? info.capEnd : info.capRun;
+  else if (idx===3 && !sunOn && s4max<1) cap = info.capDark;
+  $('stepCap').textContent = cap;
   $('keyLine').hidden = !(mode==='REPEAT' && finished);
-  $('bPrev').disabled = (mode==='STEP' && idx===0);
-  $('bNext').style.display = mode==='REPEAT' ? 'none' : '';
-  $('bNext').textContent = idx===STEPS.length-1 ? '⟳ 오랜 시간 반복해 보기' : '다음 단계 ▶';
-  $('bPause').disabled = finished && mode==='STEP';
+}
+function refreshButtons(){
+  const chips = chipsEl.children;
+  for (let i=0;i<chips.length;i++)
+    chips[i].className = 'stepChip' + (mode==='INTRO' ? '' :
+      mode==='REPEAT' ? ' done' : i<idx ? ' done' : i===idx ? ' cur' : '');
+  const intro = mode==='INTRO';
+  $('bPrev').disabled   = intro || (mode==='STEP' && idx===0);
+  $('bReplay').disabled = intro;
+  $('bRestart').disabled= intro;
+  $('bPause').disabled  = intro || (finished && mode==='STEP');
   $('bPause').textContent = playing ? '⏸ 일시정지' : '▶ 계속 보기';
+  $('bNext').style.display = mode==='REPEAT' ? 'none' : '';
+  $('bNext').disabled = intro || !finished;
+  $('bNext').textContent = idx===STEPS.length-1 ? '⟳ 오랜 시간 반복해 보기' : '다음 단계 ▶';
+  $('doneHint').hidden = !(finished && mode==='STEP');
+  // ④ 햇빛 버튼
+  const sun = $('bSun');
+  if (mode==='STEP' && idx===3){
+    if (s4max < 1 && !sunOn){ sun.hidden=false; sun.textContent='☀️ 햇빛 비추기'; sun.className=''; }
+    else if (s4max < 1){ sun.hidden=true; }
+    else { sun.hidden=false;
+      sun.textContent = sunOn ? '🌙 햇빛 끄기' : '☀️ 햇빛 켜기';
+      sun.className = sunOn ? '' : 'off'; }
+  } else sun.hidden = true;
   const chip = $('repChip');
   if (mode==='STEP' && idx===STEPS.length-1){
     chip.hidden=false; chip.textContent='반복 횟수 1회 · 형성된 얇은 층 1개';
   } else if (mode!=='REPEAT') chip.hidden=true;
 }
+function closeWhy(){ $('whyBox').hidden=true; $('btnWhy').setAttribute('aria-expanded','false'); }
 
 function enterStep(i){
-  mode='STEP'; idx=i; clock=0; playing=true; finished=RM;
-  refreshUi();
+  mode='STEP'; idx=i; clock=0; playing=true;
+  sunOn = i>3; litClock=0; s4max = (i>3?1:0);
+  finished = RM ? i!==3 : false;
+  closeWhy(); setTexts(); refreshButtons();
+}
+function enterIntro(){
+  mode='INTRO'; idx=0; clock=0; playing=false; finished=false; sunOn=false; litClock=0; s4max=0;
+  $('introOv').hidden=false; closeWhy();
+  $('stepName').textContent='관찰 준비 — ';
+  $('stepCap').textContent='버튼을 누르면 ① 미생물 매트 관찰이 시작됩니다.';
+  $('keyLine').hidden=true; refreshButtons();
 }
 function enterRepeat(){
   mode='REPEAT'; clock=0; playing=true; finished=false;
   macro = buildMacro(cv1._w||800, cv1._h||460);
   if (RM) clock = 1e9;
-  refreshUi();
+  closeWhy(); setTexts(); refreshButtons();
 }
 
-const ZOOM_MS = 1800, REP_MS = 1100, END_HOLD = 400;
+const ZOOM_MS = 2200, REP_MS = 1500, END_HOLD = 500;
 
 function drawT1(){
   if (!cv1._w) return;
   const W = cv1._w, H = cv1._h;
-  // 확대 관찰: 논리 좌표(높이 300)를 화면 높이에 맞게 확대해 그림
-  const zs = Math.max(1, H/300), LW = W/zs, LH = 300;
-  if (!scene || Math.abs(scene.W-LW)>1 || scene.H!==LH) scene = buildScene(LW,LH);
-  if (mode==='STEP'){
-    const p = RM ? 1 : Math.min(1, clock/stepDur(idx));
-    if (p>=1 && !finished){ finished=true; refreshUi(); }
-    ctx1.save(); ctx1.scale(zs,zs);
-    drawMicro(ctx1, scene, idx, p, amb);
+  const zs = Math.max(1, H/340), LW = W/zs;
+  if (!scene || Math.abs(scene.LW-LW)>1) scene = buildScene(LW, 340);
+  const S = scene;
+
+  if (mode!=='REPEAT'){
+    const p = mode==='INTRO' ? 1 : (RM ? (idx===3?0:1) : Math.min(1, clock/stepDur(idx)));
+    const s4p = s4prog();
+    if (mode==='STEP' && !finished){
+      const done = idx===3 ? s4p>=1 : p>=1;
+      if (done){ finished=true; setTexts(); refreshButtons(); }
+    }
+    drawSea(ctx1, W, H, lightF);
+    // 카메라: ⑥에서 천천히 축소하여 전체 표면의 일부였음을 드러냄
+    let c = 1;
+    if (mode==='STEP' && idx===5) c = lerp(1, 0.62, ease(p));
+    ctx1.save();
+    ctx1.translate(W/2, H*0.5);
+    ctx1.scale(zs*c, zs*c);
+    ctx1.translate(-S.cx0, -(170 + (1-c)*40));
+    drawMicro(ctx1, S, mode==='INTRO'?0:idx, p, amb, lightF, s4p);
     ctx1.restore();
-    drawInset(ctx1, W, H);
+    gradeDim(ctx1, W, H, lightF);
   } else {
     if (!macro || macro.W!==W || macro.H!==H){ const c=clock; macro=buildMacro(W,H); clock=c; }
     const loopT = Math.max(0, clock - ZOOM_MS);
     const kDone = Math.floor(loopT/REP_MS);
-    const visible = Math.min(MACRO_REPS, MACRO_START + kDone);
-    const curP = visible < MACRO_REPS ? (loopT%REP_MS)/REP_MS : 1;
-    if (visible>=MACRO_REPS && loopT > (MACRO_REPS-MACRO_START)*REP_MS + END_HOLD && !finished){
-      finished = true; refreshUi();
+    const visible = Math.min(MACRO_REPS, MACRO_START + kDone + 1);
+    const doneAll = MACRO_START + kDone >= MACRO_REPS;
+    const curP = doneAll ? 1 : (loopT%REP_MS)/REP_MS;
+    if (doneAll && loopT > (MACRO_REPS-MACRO_START)*REP_MS + END_HOLD && !finished){
+      finished = true; setTexts(); refreshButtons();
     }
-    drawMacro(ctx1, macro, visible, curP, amb);
-    if (clock < ZOOM_MS){                    // 확대 화면에서 전체 단면으로 축소
-      const pz = ease(clock/ZOOM_MS);
-      if (pz < 0.55){
-        ctx1.save(); ctx1.globalAlpha = 1 - pz/0.55; ctx1.scale(zs,zs);
-        drawMicro(ctx1, scene, 5, 1, amb);
-        ctx1.restore();
-      }
+    drawSea(ctx1, W, H, 1);
+    // 실제 줌아웃: 확대 배율이 이어서 줄어드는 느낌
+    const pz = ease(Math.min(1, clock/ZOOM_MS));
+    ctx1.save();
+    const zsc = lerp(2.3, 1, pz);
+    ctx1.translate(W/2, H*0.62); ctx1.scale(zsc,zsc); ctx1.translate(-macro.cx, -(macro.baseY-40));
+    drawMacro(ctx1, macro, doneAll?MACRO_REPS:visible, doneAll?1:curP, amb);
+    ctx1.restore();
+    if (pz < 0.5){                     // 확대 장면에서 이어지는 전환
+      const zz = Math.max(1, H/340);
+      ctx1.save(); ctx1.globalAlpha = 1 - pz/0.5;
+      ctx1.translate(W/2, H*0.5); ctx1.scale(zz*0.62, zz*0.62); ctx1.translate(-scene.cx0, -185);
+      drawMicro(ctx1, scene, 5, 1, amb, 1, 1);
+      ctx1.restore();
     }
-    $('repChip').hidden = false;
-    $('repChip').textContent = `반복 횟수 ${visible}회 · 형성된 얇은 층 ${visible}개`;
+    const chip = $('repChip'); chip.hidden = false;
+    const completed = Math.min(MACRO_REPS, MACRO_START + kDone);
+    chip.textContent = doneAll
+      ? `반복 횟수 ${MACRO_REPS}회 · 형성된 얇은 층 ${MACRO_REPS}개`
+      : `${completed+1}번째 층 형성 중…`;
   }
 }
 
 /* ---------- 탭 1 버튼 ---------- */
+$('bStart').addEventListener('click', () => { $('introOv').hidden=true; enterStep(0); });
 $('bNext').addEventListener('click', () => {
-  if (mode!=='STEP') return;
-  if (idx===STEPS.length-1) enterRepeat();
-  else enterStep(idx+1);
+  if (mode!=='STEP' || $('bNext').disabled) return;
+  if (idx===STEPS.length-1) enterRepeat(); else enterStep(idx+1);
 });
 $('bPrev').addEventListener('click', () => {
   if (mode==='REPEAT') enterStep(STEPS.length-1);
-  else if (idx>0) enterStep(idx-1);
+  else if (mode==='STEP' && idx>0) enterStep(idx-1);
 });
 $('bReplay').addEventListener('click', () => {
-  if (mode==='REPEAT') enterRepeat(); else enterStep(idx);
+  if (mode==='REPEAT') enterRepeat(); else if (mode==='STEP') enterStep(idx);
 });
-$('bPause').addEventListener('click', () => {
-  playing = !playing; refreshUi();
+$('bPause').addEventListener('click', () => { playing = !playing; refreshButtons(); });
+$('bRestart').addEventListener('click', enterIntro);
+$('bSun').addEventListener('click', () => {
+  if (s4max < 1){ sunOn = true; litClock = RM?stepDur(3):0; playing = true; }
+  else sunOn = !sunOn;
+  setTexts(); refreshButtons();
 });
-$('bRestart').addEventListener('click', () => enterStep(0));
 $('btnWhy').addEventListener('click', () => {
   const box = $('whyBox');
   box.textContent = (mode==='REPEAT' ? REPEAT_INFO : STEPS[idx]).why;
@@ -751,206 +1072,360 @@ $('btnWhy').addEventListener('click', () => {
   $('btnWhy').setAttribute('aria-expanded', String(!box.hidden));
 });
 document.addEventListener('keydown', e => {
-  if (activeTab!=='t1' || e.target.tagName==='BUTTON' || e.target.tagName==='TEXTAREA') return;
+  if (activeTab!=='t1' || e.target.tagName==='BUTTON') return;
   if (e.key==='ArrowRight'){ $('bNext').click(); e.preventDefault(); }
   else if (e.key==='ArrowLeft'){ $('bPrev').click(); e.preventDefault(); }
-  else if (e.key===' '){ $('bPause').click(); e.preventDefault(); }
+  else if (e.key===' '){ if(!$('bPause').disabled) $('bPause').click(); e.preventDefault(); }
 });
 
 /* ============================================================
-   탭 2 — 기준 조건 vs 바꾼 조건 비교
+   탭 2 — 같은 시드로 비교 + 실측 결과
    ============================================================ */
 const LEVELS = { sed:['적음','보통','많음'], flow:['약함','보통','강함'] };
 const VAR_NAME = { sed:'퇴적물 공급량', flow:'물의 흐름' };
-const SUPPLY = { '적음':0.45, '보통':1, '많음':2.1 };
-const FLOWP  = { '약함':{drift:0.25,sweep:0.05}, '보통':{drift:0.9,sweep:0.22}, '강함':{drift:2.4,sweep:0.6} };
-const BASE_PARAMS = { count:30, drift:0.9, sweep:0.22, patchy:false };
-const OBS_BASE = { caught:'보통', swept:'일부', mat:'잘 이루어짐', layer:'비교적 고르고 연속적' };
-const OBS = {
-  sed: { '적음':{caught:'적음', swept:'일부', mat:'빠르게 이루어짐', layer:'매우 얇아 잘 드러나지 않음'},
-         '보통': OBS_BASE,
-         '많음':{caught:'많음', swept:'적음', mat:'부분적으로 이루어짐(깊이 묻힘)', layer:'두껍고 불규칙함'} },
-  flow:{ '약함':{caught:'많음', swept:'거의 없음', mat:'잘 이루어짐', layer:'두껍고 연속적'},
-         '보통': OBS_BASE,
-         '강함':{caught:'적음', swept:'많음', mat:'부분적으로 이루어짐', layer:'얇고 불연속적'} },
-};
-function duoParams(v, lvl){
-  const p = { ...BASE_PARAMS };
-  if (v==='sed'){ p.count = Math.round(30*SUPPLY[lvl]); p.patchy = SUPPLY[lvl]>1.5; }
-  if (v==='flow'){ p.drift = FLOWP[lvl].drift; p.sweep = FLOWP[lvl].sweep; p.patchy = lvl==='강함'; }
-  return p;
-}
+const D_CYCLES = 2, D_FALL = 4.2, D_GROW = 3.4, D_CYC = D_FALL + D_GROW + 0.6;
+const BASE_N = 18;                       // 기준: 사이클당 입자 수
+const SUPPLY_N = { '적음':9, '보통':BASE_N, '많음':30 };
+const FLOWP = { '약함':{drift:8,sweep:0.05}, '보통':{drift:22,sweep:0.22}, '강함':{drift:70,sweep:0.62} };
 
-const DUO_CYCLES = 3, D_FALL = 2.7, D_GROW = 1.6, D_CYC = D_FALL + D_GROW;
-let duoSel = null;            // {v, lvl}
-let duoPlaying = true;
+let duoSel = null, duoPlaying = false, schedule = null;
+
+function makeSchedule(seed){             // 두 화면이 공유하는 입자 초기 조건
+  const rnd = mulberry32(seed);
+  const cycles = [];
+  for (let c=0;c<D_CYCLES;c++){
+    const list = [];
+    for (let i=0;i<32;i++){
+      list.push({ tOff: (i/32)*D_FALL*0.85 + rnd()*0.2,
+        fx: 0.06+rnd()*0.88, g: makeGrainShape(rnd, 8+rnd()*5),
+        u: rnd(), ph: rnd()*6.28, vy: 44+rnd()*26 });
+    }
+    cycles.push(list);
+  }
+  return cycles;
+}
+function panelParams(v, lvl){
+  return { n: v==='sed' ? SUPPLY_N[lvl] : BASE_N,
+           drift: v==='flow' ? FLOWP[lvl].drift : FLOWP['보통'].drift,
+           sweep: v==='flow' ? FLOWP[lvl].sweep : FLOWP['보통'].sweep };
+}
+const BASE_P = { n:BASE_N, drift:FLOWP['보통'].drift, sweep:FLOWP['보통'].sweep };
 
 function makePanel(cv){ return { cv, ctx: cv.getContext('2d') }; }
 const panA = makePanel($('cvA')), panB = makePanel($('cvB'));
 
 function resetPanel(P, params, seed){
-  if (!fitCanvas(P.cv)) { P.ready=false; return; }
+  if (!fitCanvas(P.cv)){ P.ready=false; return; }
   P.ready = true;
-  P.w = P.cv._w; P.h = P.cv._h;
-  P.rnd = mulberry32(seed);
-  P.params = params;
-  P.baseY = P.h*0.72;
-  P.nb = Math.ceil(P.w/14);
-  P.surf = Array.from({length:P.nb}, (_,i)=> 8+4*Math.sin(i/4));
-  P.grains = []; P.falling = []; P.snaps = [];
-  P.clock = 0; P.cycle = 0; P.spawned = 0; P.done = false;
-  P.gaps = Array.from({length:P.nb}, ()=> P.params.patchy && P.rnd()<0.45);
+  P.LH = 300; P.LW = P.cv._w / (P.cv._h/300);
+  P.params = params; P.rnd = mulberry32(seed+77);
+  P.baseY = 300*0.58;
+  P.bw = 17; P.nb = Math.ceil(P.LW/P.bw);
+  P.subG = [];
+  { const r2 = mulberry32(seed+5);
+    for (let i=0;i<14;i++) P.subG.push({ g:makeGrainShape(r2, 7+r2()*7), x:r2()*P.LW,
+      y:P.baseY+18+r2()*(300-P.baseY-24), rot:r2()*6.28 }); }
+  P.h = Array.from({length:P.nb}, (_,i)=> 6+3*Math.sin(i/3.2)+2*Math.sin(i/1.7));
+  P.h0 = [...P.h];
+  P.grains=[]; P.fall=[]; P.snaps=[]; P.migr=[];
+  P.matProg = new Array(P.nb).fill(1);   // 시작 매트는 완성 상태
+  P.matMask = new Array(P.nb).fill(true);
+  P.clock=0; P.cycle=-1; P.done=false; P.growInit=false;
+  P.stat = { sup:0, caught:0, swept:0, cov:1 };
+  P.spIdx = 0;
 }
-function surfAt(P, x){
-  const b = Math.max(0, Math.min(P.nb-1, Math.floor(x/14)));
-  return P.baseY - P.surf[b];
+function pSurfY(P, x){
+  const b = Math.max(0, Math.min(P.nb-1, Math.floor(x/P.bw)));
+  return P.baseY - P.h[b];
 }
 function updatePanel(P, dt){
   if (!P.ready) return;
-  if (!P.done){
-    P.clock += dt;
-    const cyc = Math.floor(P.clock/D_CYC);
-    if (cyc >= DUO_CYCLES){ P.done = true; onDuoMaybeDone(); }
-    else {
-      if (cyc > P.cycle){                    // 새 사이클: 이전 표면을 흔적으로 저장
-        P.snaps.push([...P.surf]); P.cycle = cyc; P.spawned = 0;
-        P.gaps = Array.from({length:P.nb}, ()=> P.params.patchy && P.rnd()<0.45);
-      }
-      const lt = P.clock - cyc*D_CYC;
-      if (lt < D_FALL){                      // 입자 뿌리기
-        const want = Math.floor(P.params.count * lt/D_FALL);
-        while (P.spawned < want){
-          P.spawned++;
-          P.falling.push({ x: 15+P.rnd()*(P.w-30), y: -8-P.rnd()*P.h*0.25,
-            vy: 62+P.rnd()*40, s: 3+P.rnd()*3.5, ph: P.rnd()*6.28,
-            willSweep: P.rnd() < P.params.sweep, sw:false, a:1, hue:P.rnd() });
-        }
-      }
-      const k = Math.min(1, dt*3)*0.5;       // 표면을 완만하게 다듬기
-      for (let b=1; b<P.nb-1; b++)
-        P.surf[b] += ((P.surf[b-1]+P.surf[b+1])/2 - P.surf[b])*k;
+  if (P.done){ advanceFall(P, dt); return; }
+  P.clock += dt;
+  const cyc = Math.floor(P.clock/D_CYC);
+  if (cyc >= D_CYCLES){
+    P.done = true;
+    P.fall.forEach(f => {                 // 공중에 남은 입자 정산
+      if (f.st!=='fall') return;
+      if (f.u < P.params.sweep){ f.st='swept'; P.stat.swept++; }
+      else { f.st='stick'; f.wob=0; f.y=pSurfY(P,f.x)-f.g.size*0.3; P.stat.caught++; }
+    });
+    const act = P.matMask.slice(3, P.nb-3);
+    P.stat.cov = act.filter(Boolean).length/act.length;
+    onDuoMaybeDone(); advanceFall(P, dt); return;
+  }
+  const lt = P.clock - cyc*D_CYC;
+  if (cyc > P.cycle){                     // 새 사이클 시작
+    P.cycle = cyc; P.spIdx = 0; P.growInit = false;
+    P.snaps.push([...P.h]); P.hCyc = [...P.h];
+    P.migr = [];
+  }
+  if (lt < D_FALL){                       // 공유 스케줄에서 입자 투입
+    const list = schedule[cyc];
+    while (P.spIdx < P.params.n && P.spIdx < list.length && list[P.spIdx].tOff <= lt){
+      const d = list[P.spIdx++];
+      P.stat.sup++;
+      P.fall.push({ g:d.g, x:d.fx*P.LW, y:-10-hash(P.spIdx)*40, vy:d.vy,
+        u:d.u, ph:d.ph, rot:d.g.rot0, st:'fall', wob:0, a:1 });
     }
   }
-  // 남은 입자는 관찰 완료 후에도 끝까지 내려앉음
-  for (let i=P.falling.length-1; i>=0; i--){
-    const f = P.falling[i];
-    if (f.sw){                                // 물살에 쓸려 지나감
-      f.x += (70 + P.params.drift*150)*dt; f.a -= dt*1.1;
-      if (f.a<=0 || f.x>P.w+15) P.falling.splice(i,1);
+  if (lt >= D_FALL && !P.growInit){ startGrow(P); P.growInit = true; }
+  if (lt >= D_FALL){                      // 새 표면 매트 성장
+    for (let b=0;b<P.nb;b++){
+      if (!P.matMask[b]) continue;
+      const depth = Math.max(0, P.h[b]-P.hCyc[b]);
+      P.matProg[b] = Math.min(1, P.matProg[b] + dt/(1.1 + depth*0.09));
+    }
+  }
+  // 표면 완만화
+  const k = Math.min(1, dt*3)*0.7;
+  for (let b=1;b<P.nb-1;b++) P.h[b] += ((P.h[b-1]+P.h[b+1])/2 - P.h[b])*k;
+  advanceFall(P, dt);
+}
+function startGrow(P){
+  // 매몰 깊이에 따라 새 매트 형성 여부·속도 결정 (깊으면 부분적)
+  // 아직 내려오는 중인 입자의 예상 퇴적량도 포함해 판정
+  const proj = [...P.h];
+  P.fall.forEach(f => {
+    if (f.st!=='fall' || f.u < P.params.sweep) return;
+    const b = Math.max(0, Math.min(P.nb-1, Math.floor(f.x/P.bw)));
+    proj[b] += f.g.size*1.2;
+    if (b>0) proj[b-1] += f.g.size*0.55;
+    if (b<P.nb-1) proj[b+1] += f.g.size*0.55;
+  });
+  for (let b=0;b<P.nb;b++){
+    const depth = Math.max(0, proj[b]-P.hCyc[b]);
+    const deep = depth > 18 + hash(b*7+P.cycle*11)*9;  // 깊이 묻힐수록 새 매트 형성이 어려움
+    const gap = hash(b*13+P.cycle*7) < (P.params.sweep>0.4 ? 0.45 : 0.06);
+    P.matMask[b] = !deep && !gap;
+    P.matProg[b] = 0;
+  }
+  // 이동하는 남세균 사슬 3가닥
+  for (let i=0;i<3;i++){
+    const b = 3+Math.floor(hash(i*5+P.cycle*3)* (P.nb-6));
+    const x = b*P.bw+P.bw/2;
+    const raw = [[x, P.baseY-P.hCyc[b]+2],
+      [x+(hash(i+9)-0.5)*16, P.baseY-(P.hCyc[b]+P.h[b])/2],
+      [x+(hash(i+3)-0.5)*10, P.baseY-P.h[b]-2],
+      [x+14, P.baseY-P.h[b]-2.5]];
+    P.migr.push({ path: smoothPath(raw,3), t0: P.clock, ph: i*2 });
+  }
+}
+function advanceFall(P, dt){
+  for (let i=P.fall.length-1;i>=0;i--){
+    const f = P.fall[i];
+    if (f.st==='swept'){
+      f.x += (60+P.params.drift*2.2)*dt; f.y -= 6*dt; f.a -= dt*0.9;
+      if (f.a<=0 || f.x>P.LW+20){ P.fall.splice(i,1); }
       continue;
     }
+    if (f.st==='stick'){
+      f.wob += dt;
+      if (f.wob > 0.9){ P.grains.push({g:f.g, x:f.x, y:f.y, rot:f.rot});
+        if (P.grains.length>200) P.grains.shift();
+        P.fall.splice(i,1); }
+      continue;
+    }
+    const top = pSurfY(P, f.x);
+    if (f.y > top-24) f.vy = Math.max(12, f.vy*Math.pow(0.16, dt));   // 표면 근처 감속
     f.y += f.vy*dt;
-    f.x += (Math.sin(P.clock*2+f.ph)*10 + P.params.drift*42)*dt;
-    if (f.x > P.w+15){ P.falling.splice(i,1); continue; }
-    const top = surfAt(P, f.x);
-    if (f.y >= top - f.s*0.4){
-      if (f.willSweep){ f.sw = true; f.y = top - f.s; }
-      else {                                  // 점액질에 붙잡혀 고정
-        const b = Math.max(0, Math.min(P.nb-1, Math.floor(f.x/14)));
-        if (P.surf[b] < P.h*0.5){
-          P.surf[b] += f.s*1.6;
-          if (b>0)      P.surf[b-1] += f.s*0.55;
-          if (b<P.nb-1) P.surf[b+1] += f.s*0.55;
-        }
-        P.grains.push({ x:f.x, y:P.baseY-P.surf[b]+f.s*0.3, s:f.s, hue:f.hue });
-        if (P.grains.length > 260) P.grains.shift();
-        P.falling.splice(i,1);
+    f.x += (Math.sin(P.clock*1.8+f.ph)*9 + P.params.drift)*dt;
+    f.rot += f.g.spin*dt*0.8;
+    if (f.x > P.LW+20){ P.stat.swept++; P.fall.splice(i,1); continue; }
+    if (f.y >= top - f.g.size*0.35){
+      if (f.u < P.params.sweep){ f.st='swept'; P.stat.swept++; }
+      else {
+        f.st='stick'; f.wob=0; f.y=top - f.g.size*0.3; P.stat.caught++;
+        const b = Math.max(0, Math.min(P.nb-1, Math.floor(f.x/P.bw)));
+        if (P.h[b] < 100){ P.h[b]+=f.g.size*1.2;
+          if(b>0)P.h[b-1]+=f.g.size*0.55; if(b<P.nb-1)P.h[b+1]+=f.g.size*0.55;
+          if(b>1)P.h[b-2]+=f.g.size*0.25; if(b<P.nb-2)P.h[b+2]+=f.g.size*0.25; }
       }
     }
   }
 }
-function drawPanel(P){
+function drawPanel(P, t){
   if (!P.ready) return;
-  const {ctx, w, h} = P;
-  drawWater(ctx, w, h);
-  ctx.fillStyle = '#b19878'; ctx.fillRect(0, P.baseY+6, w, h);
-  // 쌓인 퇴적물(고운 기질)
-  ctx.beginPath(); ctx.moveTo(0, P.baseY+6);
-  for (let b=0;b<P.nb;b++) ctx.lineTo(b*14+7, P.baseY-P.surf[b]);
-  ctx.lineTo(w, P.baseY+6); ctx.closePath();
-  ctx.fillStyle = '#a07c52'; ctx.fill();
-  // 굵은 입자
-  P.grains.forEach(g => {
-    ctx.fillStyle = `rgb(${138+g.hue*40|0},${102+g.hue*30|0},${68+g.hue*22|0})`;
-    ctx.beginPath(); ctx.arc(g.x, g.y, g.s*0.9, 0, 6.283); ctx.fill();
-  });
-  // 과거 매트의 흔적(묻힌 옛 표면)
-  ctx.strokeStyle = 'rgba(70,72,50,.4)'; ctx.lineWidth = 1.5;
+  const {ctx} = P, cw=P.cv._w, ch=P.cv._h;
+  ctx.save();
+  ctx.scale(cw/P.LW, ch/300);
+  // 물
+  const g = ctx.createLinearGradient(0,0,0,300);
+  g.addColorStop(0,PAL.day[0]); g.addColorStop(0.6,PAL.day[1]); g.addColorStop(1,PAL.day[2]);
+  ctx.fillStyle=g; ctx.fillRect(0,0,P.LW,300);
+  const s = ctx.createRadialGradient(P.LW*0.25,-20,5, P.LW*0.25,-20,320);
+  s.addColorStop(0,'rgba(255,241,196,.3)'); s.addColorStop(1,'rgba(255,241,196,0)');
+  ctx.fillStyle=s; ctx.fillRect(0,0,P.LW,300);
+  // 기질
+  const bg = ctx.createLinearGradient(0,P.baseY,0,300);
+  bg.addColorStop(0,PAL.mudTop); bg.addColorStop(1,'#6b5840');
+  ctx.fillStyle=bg; ctx.fillRect(0,P.baseY+4,P.LW,300-P.baseY);
+  P.subG.forEach(o => drawGrain(ctx, o.g, o.x, o.y, o.rot, 0.8, 0));
+  ctx.save(); ctx.strokeStyle='rgba(96,96,66,.35)'; ctx.lineWidth=1.5; ctx.setLineDash([6,8]);
+  ctx.beginPath();
+  for (let x=0;x<=P.LW;x+=12){ const y=P.baseY+34+3*Math.sin(x/40); x?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+  ctx.stroke(); ctx.restore();
+  // 쌓인 퇴적물(부드러운 언덕 + 질감 입자)
+  ctx.beginPath(); ctx.moveTo(0,P.baseY+6);
+  for (let b=0;b<P.nb;b++) ctx.lineTo(b*P.bw+P.bw/2, P.baseY-P.h[b]);
+  ctx.lineTo(P.LW,P.baseY+6); ctx.closePath();
+  const mg = ctx.createLinearGradient(0,P.baseY-60,0,P.baseY+4);
+  mg.addColorStop(0,PAL.mudTop); mg.addColorStop(1,PAL.mudBot);
+  ctx.fillStyle=mg; ctx.fill();
+  // 매몰 중인 살아 있는 매트: 사이클 시작 시점 표면에 그대로(입자가 위를 덮음)
+  const ltNow = P.done ? D_CYC : P.clock - Math.max(0,P.cycle)*D_CYC;
+  const falling = !P.done && P.cycle>=0 && ltNow < D_FALL;
+  const matHeights = falling && P.snaps.length ? P.snaps[P.snaps.length-1] : P.h;
+  function drawMatRow(){
+    for (let b=1;b<P.nb-1;b++){
+      const pr = falling ? 1 : P.matProg[b];
+      if (!P.matMask[b] || pr<=0.05) continue;
+      const x=b*P.bw+P.bw/2, y=P.baseY-matHeights[b]-3;
+      ctx.globalAlpha = pr;
+      ctx.fillStyle = b%2?PAL.matA:PAL.matB;
+      ctx.beginPath(); ctx.arc(x+Math.sin(t*2+b)*0.8, y, 3.2, 0, 6.283); ctx.fill();
+      ctx.fillStyle = b%3?PAL.matB:PAL.matA;
+      ctx.beginPath(); ctx.arc(x+P.bw*0.33, y-1.4, 2.8, 0, 6.283); ctx.fill();
+      ctx.fillStyle = PAL.matHi; ctx.globalAlpha = pr*0.6;
+      ctx.beginPath(); ctx.arc(x-0.9, y-1, 0.9, 0, 6.283); ctx.fill();
+      ctx.globalAlpha = pr*0.2; ctx.strokeStyle='#d3e296'; ctx.lineWidth=9; ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(x-P.bw*0.5,y-1); ctx.lineTo(x+P.bw*0.5,y-1); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  }
+  if (falling) drawMatRow();
+  P.grains.forEach(gr => drawGrain(ctx, gr.g, gr.x, gr.y, gr.rot, 0.95, 0.5));
+  // 옛 표면(묻힌 매트)의 흔적
+  ctx.save(); ctx.strokeStyle='rgba(96,96,66,.5)'; ctx.lineWidth=1.6; ctx.setLineDash([5,6]);
   P.snaps.forEach(sn => {
     ctx.beginPath();
-    for (let b=0;b<P.nb;b++){ const y=P.baseY-sn[b]; b?ctx.lineTo(b*14+7,y):ctx.moveTo(b*14+7,y); }
+    for (let b=0;b<P.nb;b++){ const y=P.baseY-sn[b]-1; b?ctx.lineTo(b*P.bw+P.bw/2,y):ctx.moveTo(b*P.bw+P.bw/2,y); }
     ctx.stroke();
   });
-  // 살아 있는 매트: 현재 표면(불리한 조건에서는 불연속)
-  ctx.strokeStyle = '#2e8b6e'; ctx.lineWidth = 3; ctx.lineCap='round';
-  for (let b=0;b<P.nb-1;b++){
-    if (P.gaps[b]) continue;
-    ctx.beginPath();
-    ctx.moveTo(b*14+7, P.baseY-P.surf[b]-2);
-    ctx.lineTo(b*14+21, P.baseY-P.surf[b+1]-2);
-    ctx.stroke();
-  }
-  // 떨어지는/쓸려가는 입자
-  P.falling.forEach(f => {
-    ctx.globalAlpha = Math.max(0, f.a);
-    ctx.fillStyle = f.sw ? '#c0a67e' : '#8a6c44';
-    ctx.beginPath(); ctx.arc(f.x, f.y, f.s*0.7, 0, 6.283); ctx.fill();
+  ctx.restore();
+  // 이동 중인 남세균 사슬
+  P.migr.forEach(m => {
+    const q = ease((P.clock-m.t0)/(D_GROW*0.62));
+    if (q<=0.02 || q>=1.15) return;
+    const W2=0.4, head=Math.min(1.001, q*(1+W2));
+    const pts=[]; for (let k=0;k<8;k++) pts.push(samplePath(m.path, head-W2+W2*k/7));
+    drawChain(ctx, pts, 3, true, Math.min(1,q*3), true, m.ph);
   });
-  ctx.globalAlpha = 1;
-  // 진행 표시
-  ctx.font='600 12px "IBM Plex Sans KR",sans-serif';
-  ctx.fillStyle='rgba(255,255,255,.92)';
-  ctx.beginPath(); ctx.roundRect(8,8,86,22,11); ctx.fill();
+  // 새 표면의 살아 있는 매트(성장 단계, 형성 진행도 반영)
+  if (!falling) drawMatRow();
+  // 떨어지는/붙잡히는/쓸려가는 입자
+  P.fall.forEach(f => {
+    if (f.st==='swept'){
+      for (let k=2;k>=1;k--)
+        drawGrain(ctx, f.g, f.x-k*9, f.y+k*2, f.rot, 0.15*f.a*(3-k), 0);
+      drawGrain(ctx, f.g, f.x, f.y, f.rot, Math.max(0,f.a), 0);
+    } else if (f.st==='stick'){
+      const wy = Math.exp(-f.wob*5)*Math.sin(f.wob*24)*2.2;
+      drawGrain(ctx, f.g, f.x, f.y+wy, f.rot, 1, clamp01(f.wob*2));
+      ctx.save(); ctx.globalAlpha=0.5*clamp01(f.wob*3);        // 점액질 실
+      ctx.strokeStyle='#c7d98a'; ctx.lineWidth=1.3;
+      ctx.beginPath(); ctx.moveTo(f.x-10, pSurfY(P,f.x-10));
+      ctx.quadraticCurveTo(f.x-4, f.y+5, f.x, f.y+f.g.size*0.5);
+      ctx.moveTo(f.x+11, pSurfY(P,f.x+11));
+      ctx.quadraticCurveTo(f.x+5, f.y+6, f.x, f.y+f.g.size*0.5);
+      ctx.stroke(); ctx.restore();
+    } else drawGrain(ctx, f.g, f.x, f.y, f.rot, 1, 0);
+  });
+  // 진행 배지
+  ctx.font='600 11px "IBM Plex Sans KR",sans-serif';
+  ctx.fillStyle='rgba(255,255,255,.9)';
+  ctx.beginPath(); ctx.roundRect(7,7,P.done?66:78,19,10); ctx.fill();
   ctx.fillStyle='#0e4b5e';
-  ctx.fillText(P.done ? '관찰 완료' : `사이클 ${Math.min(DUO_CYCLES,P.cycle+1)} / ${DUO_CYCLES}`, 17, 23);
+  ctx.fillText(P.done?'관찰 완료':`사이클 ${Math.min(D_CYCLES,P.cycle+1)} / ${D_CYCLES}`, 15, 20.5);
+  ctx.restore();
 }
-function fillObs(ul, o, note){
-  ul.innerHTML = '';
-  const rows = [['붙잡힌 퇴적물',o.caught],['쓸려간 퇴적물',o.swept],['새 표면 형성',o.mat],['층의 모습',o.layer]];
-  rows.forEach(([k,v]) => {
-    const li = document.createElement('li'); li.innerHTML = `<b>${k}</b>${v}`; ul.appendChild(li);
-  });
-  if (note){ const li=document.createElement('li'); li.style.gridColumn='1/-1'; li.textContent=note; ul.appendChild(li); }
+
+/* ---------- 실측 결과 → 관찰 카드 ---------- */
+function layerStats(P){
+  const th=[]; for (let b=3;b<P.nb-3;b++) th.push((P.h[b]-P.h0[b])/D_CYCLES);
+  const mean = th.reduce((a,v)=>a+v,0)/th.length;
+  const sd = Math.sqrt(th.reduce((a,v)=>a+(v-mean)*(v-mean),0)/th.length);
+  return { mean, cv: mean>0 ? sd/mean : 0 };
+}
+function cmpTag(v, base, upWord, downWord){
+  if (base<=0) return ['',''];
+  const r=v/base;
+  if (r>1.18) return [upWord+' ▲','up'];
+  if (r<0.82) return [downWord+' ▼','down'];
+  return ['기준과 비슷함',''];
+}
+function obsRow(name, val, cmp, cls, barPct){
+  return `<li><div class="ok"><b>${name}</b><span class="cmp ${cls}">${cmp}</span></div>
+    <span class="val">${val}</span>
+    <div class="bar"><i style="width:${Math.round(barPct)}%"></i></div></li>`;
+}
+function fillObsFrom(P, base, ul, isBase){
+  const ls = layerStats(P), bs = layerStats(base);
+  const cov = Math.round(P.stat.cov*100);
+  const mx = Math.max(P.stat.caught, base.stat.caught, 1);
+  const mxS = Math.max(P.stat.swept, base.stat.swept, 1);
+  const [c1,k1] = isBase?['',''] : cmpTag(P.stat.caught, base.stat.caught,'기준보다 많음','기준보다 적음');
+  const [c2,k2] = isBase?['',''] : cmpTag(P.stat.swept, base.stat.swept,'기준보다 많음','기준보다 적음');
+  const [c3,k3] = isBase?['',''] : cmpTag(P.stat.cov, base.stat.cov,'기준보다 넓음','기준보다 좁음');
+  const thickW = isBase?'' : ls.mean>=bs.mean*1.35?'두껍고 ' : ls.mean<=bs.mean*0.6?'얇고 ' : '';
+  let shape = P.stat.cov<0.62 ? '불연속적' : ls.cv>0.75 ? '불규칙함' : '고르고 연속적';
+  let layerTxt = thickW + shape;
+  if (!thickW && shape==='고르고 연속적') layerTxt = '비교적 고르고 연속적';
+  const [c4,k4] = isBase?['',''] : [ls.mean>=bs.mean*1.35?'기준보다 두꺼움 ▲':ls.mean<=bs.mean*0.6?'기준보다 얇음 ▼':'기준과 비슷한 두께', ls.mean>=bs.mean*1.35?'up':ls.mean<=bs.mean*0.6?'down':''];
+  ul.innerHTML =
+    obsRow('붙잡힌 퇴적물', `${P.stat.caught}개 / 공급 ${P.stat.sup}개`, c1, k1, P.stat.caught/mx*100) +
+    obsRow('쓸려간 퇴적물', `${P.stat.swept}개`, c2, k2, P.stat.swept/mxS*100) +
+    obsRow('새 표면 형성', `표면의 ${cov}%`, c3, k3, cov) +
+    obsRow('층의 모습', layerTxt, c4, k4, Math.min(100, ls.mean/Math.max(bs.mean,0.001)*50));
 }
 function onDuoMaybeDone(){
   if (!(panA.done && panB.done) || !duoSel) return;
-  fillObs($('obsA'), OBS_BASE);
-  const same = (duoSel.lvl==='보통');
-  fillObs($('obsB'), OBS[duoSel.v][duoSel.lvl], same ? '※ 기준 조건과 같은 수준입니다. 다른 수준을 골라 비교해 보세요.' : '');
+  fillObsFrom(panA, panA, $('obsA'), true);
+  fillObsFrom(panB, panA, $('obsB'), false);
+  if (duoSel.lvl==='보통')
+    $('obsB').innerHTML += '<li style="grid-column:1/-1">※ 기준 조건과 같은 수준입니다. 다른 수준을 골라 비교해 보세요.</li>';
+  refreshDuoButtons();
+}
+function refreshDuoButtons(){
+  const has = !!duoSel;
+  $('dReplay').disabled = !has;
+  $('dPause').disabled = !has || (panA.done && panB.done);
+  $('dPause').textContent = duoPlaying ? '⏸ 일시정지' : '▶ 계속 보기';
 }
 function startDuo(){
   if (!duoSel) return;
   $('duoHint').hidden = true;
-  $('obsA').innerHTML = ''; $('obsB').innerHTML = '';
+  $('obsA').innerHTML=''; $('obsB').innerHTML='';
   $('capB').innerHTML = `바꾼 조건 <small>· ${VAR_NAME[duoSel.v]} ${duoSel.lvl}</small>`;
-  resetPanel(panA, BASE_PARAMS, 909);
-  resetPanel(panB, duoParams(duoSel.v, duoSel.lvl), 909);
-  duoPlaying = true; $('dPause').textContent = '⏸ 일시정지';
-  if (RM){                                   // 동작 줄이기: 결과 상태를 바로 표시
-    while (!(panA.done && panB.done)){ updatePanel(panA, 0.05); updatePanel(panB, 0.05); }
+  schedule = makeSchedule(909);
+  resetPanel(panA, BASE_P, 909);
+  resetPanel(panB, panelParams(duoSel.v, duoSel.lvl), 909);
+  duoPlaying = true; refreshDuoButtons();
+  if (RM){
+    let guard=0;
+    while (!(panA.done && panB.done) && guard++<4000){ updatePanel(panA,0.05); updatePanel(panB,0.05); }
   }
 }
 $('varSeg').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   const v = b.dataset.v;
   $('varSeg').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed', x===b));
-  const seg = $('lvlSeg'); seg.hidden = false; seg.innerHTML = '';
+  const seg = $('lvlSeg'); seg.hidden=false; seg.innerHTML='';
   LEVELS[v].forEach(lvl => {
-    const btn = document.createElement('button'); btn.type='button'; btn.textContent = lvl;
+    const btn = document.createElement('button'); btn.type='button'; btn.textContent=lvl;
     btn.addEventListener('click', () => {
       seg.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed', x===btn));
       duoSel = { v, lvl }; startDuo();
     });
     seg.appendChild(btn);
   });
-  const def = v==='sed' ? '많음' : '강함';   // 기본으로 차이가 잘 보이는 수준 선택
+  const def = v==='sed' ? '많음' : '강함';
   [...seg.children].find(x=>x.textContent===def).click();
 });
 $('dReplay').addEventListener('click', startDuo);
 $('dPause').addEventListener('click', () => {
-  if (!duoSel) return;
-  duoPlaying = !duoPlaying;
-  $('dPause').textContent = duoPlaying ? '⏸ 일시정지' : '▶ 계속 보기';
+  if ($('dPause').disabled) return;
+  duoPlaying = !duoPlaying; refreshDuoButtons();
 });
 
 /* ============================================================
@@ -962,14 +1437,10 @@ function showTab(id){
   $('t1').hidden = id!=='t1'; $('t2').hidden = id!=='t2';
   $('tabBtn1').setAttribute('aria-selected', id==='t1');
   $('tabBtn2').setAttribute('aria-selected', id==='t2');
-  requestAnimationFrame(() => {              // 표시된 뒤 캔버스 크기 재계산
+  requestAnimationFrame(() => {
     if (id==='t1') fitCanvas(cv1);
-    else if (duoSel){ /* 크기만 다시 맞추고 진행 상태는 유지 */
-      const ka=panA.clock, kb=panB.clock;
-      if (panA.ready===undefined || !panA.ready) startDuo();
-      else { fitCanvas(panA.cv); fitCanvas(panB.cv); panA.w=panA.cv._w; panA.h=panA.cv._h; panB.w=panB.cv._w; panB.h=panB.cv._h; }
-      void ka; void kb;
-    }
+    else if (duoSel && !panA.ready) startDuo();
+    else if (duoSel){ fitCanvas(panA.cv); fitCanvas(panB.cv); }
   });
 }
 $('tabBtn1').addEventListener('click', ()=>showTab('t1'));
@@ -981,16 +1452,24 @@ fitCanvas(cv1);
 let last = performance.now();
 function frame(now){
   const dt = Math.min(0.05, (now-last)/1000); last = now;
+  // 화면 밝기(햇빛)를 부드럽게 추적
+  const target = (mode==='STEP' && idx===3) ? (sunOn?1:0) : 1;
+  lightF += (target-lightF)*Math.min(1, dt*2.2);
   if (activeTab==='t1'){
-    if (playing){ clock += dt*1000; amb += dt; }
+    if (playing){ clock += dt*1000; amb += dt;
+      if (mode==='STEP' && idx===3 && sunOn && s4max<1){
+        litClock += dt*1000;
+        s4max = Math.max(s4max, Math.min(1, litClock/stepDur(3)));
+      }
+    }
     drawT1();
   } else {
     if (duoPlaying && duoSel){ updatePanel(panA, dt); updatePanel(panB, dt); }
-    drawPanel(panA); drawPanel(panB);
+    if (duoSel){ drawPanel(panA, amb); drawPanel(panB, amb); amb += dt; }
   }
   requestAnimationFrame(frame);
 }
-enterStep(0);
+enterIntro();
 requestAnimationFrame(frame);
 </script>
 </body>
