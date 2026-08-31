@@ -8,710 +8,990 @@
 <style>
 /* ============================================================
    스트로마톨라이트 형성 시뮬레이터 — 고등학교 통합과학 수업용
-   교실 프로젝터(밝은 화면)에 맞춘 단일 밝은 테마.
-   색·크기 등 수업용 조정값은 아래 :root 변수와,
-   스크립트 상단의 OPT / BASE 객체에서 수정할 수 있습니다.
+   탭 1: 층이 만들어지는 과정 (단계별 확대 관찰)
+   탭 2: 조건에 따라 달라지는 모습 (기준 vs 변경 비교)
+   교실 프로젝터에 맞춘 밝은 단일 테마.
    ============================================================ */
 :root{
-  --paper:#f2f6f4;        /* 페이지 바탕 */
-  --card:#ffffff;         /* 패널 카드 */
-  --line:#dbe5e0;         /* 경계선 */
-  --ink:#243640;          /* 본문 글자 */
-  --ink-soft:#5a6e78;     /* 보조 글자 */
-  --accent:#186a83;       /* 버튼·강조(딥틸) */
-  --accent-ink:#0e4b5e;
-  --sea:#2f7fae;          /* 바닷물 */
-  --mat:#55842f;          /* 미생물층 */
-  --mat-bright:#79a845;
-  --sedi:#a07c52;         /* 퇴적층 */
-  --sedi-deep:#7c5f3e;
-  --carb:#efe6cd;         /* 탄산칼슘 침전층 */
-  --good:#2e7d43; --ok:#2f6fae; --warn:#a8760f; --bad:#b3453a;
+  --paper:#eef4f2; --card:#ffffff; --line:#d8e2dd;
+  --ink:#243640; --ink-soft:#5a6e78;
+  --accent:#186a83; --accent-ink:#0e4b5e;
+  --live:#2e8b6e;           /* 살아 있는 매트(청록) */
+  --amber:#c9962e;          /* 강조(층 경계) */
   --radius:12px;
 }
 *{box-sizing:border-box}
-html,body{margin:0}
+[hidden]{display:none !important}
+html,body{margin:0; height:100%}
 body{
   background:var(--paper); color:var(--ink);
-  font:400 15px/1.6 "IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  font:400 14px/1.55 "IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
 }
-.wrap{max-width:1460px; margin:0 auto; padding:16px 22px 28px}
+.app{display:flex; flex-direction:column; height:100dvh; max-width:1560px; margin:0 auto; padding:10px 16px 8px; gap:8px}
 
-/* ---------- 상단 제목 영역 ---------- */
-header.top{display:flex; justify-content:space-between; align-items:flex-end; gap:20px; flex-wrap:wrap;
-  padding-bottom:14px; border-bottom:2px solid var(--line)}
-.eyebrow{font-size:12px; font-weight:700; letter-spacing:.14em; color:var(--accent); text-transform:uppercase}
-h1{font-family:"Hahmlet",serif; font-weight:700; font-size:30px; line-height:1.25; margin:2px 0 4px; text-wrap:balance}
-.sub{margin:0; color:var(--ink-soft); font-size:14px; max-width:62ch}
-.stats{display:flex; gap:10px}
-.stat{background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
-  padding:8px 16px; text-align:center; min-width:96px}
-.stat .num{display:block; font-size:24px; font-weight:700; color:var(--accent-ink);
-  font-variant-numeric:tabular-nums; line-height:1.2}
-.stat .lab{display:block; font-size:12px; color:var(--ink-soft)}
-.badge{display:inline-block; font-size:14px; font-weight:700; padding:3px 10px; border-radius:99px;
-  background:#e8efec; color:var(--ink-soft); margin-bottom:2px}
-.badge.good{background:#e2f1e5; color:var(--good)}
-.badge.ok{background:#e3edf7; color:var(--ok)}
-.badge.warn{background:#f7eeda; color:var(--warn)}
-.badge.bad{background:#f7e3e0; color:var(--bad)}
+/* ---------- 상단: 제목 + 탭 ---------- */
+header.top{display:flex; align-items:center; gap:18px; flex-wrap:wrap}
+.brand{font-family:"Hahmlet",serif; font-weight:700; font-size:19px; white-space:nowrap}
+.brand small{font-family:"IBM Plex Sans KR",sans-serif; font-weight:400; font-size:12px; color:var(--ink-soft); margin-left:8px}
+.tabs{display:flex; gap:6px; margin-left:auto}
+.tab{border:1px solid var(--line); background:var(--card); color:var(--ink-soft);
+  font:inherit; font-size:14px; font-weight:500; padding:8px 18px; border-radius:99px; cursor:pointer}
+.tab:hover{background:#f0f5f3}
+.tab[aria-selected="true"]{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:700}
+.tab:focus-visible,button:focus-visible{outline:2px solid var(--accent-ink); outline-offset:2px}
 
-/* ---------- 3단 그리드 ---------- */
-main.grid{display:grid; grid-template-columns:252px minmax(0,1fr) 302px; gap:14px; margin-top:14px}
-@media (max-width:1080px){ main.grid{grid-template-columns:1fr} }
-.panel{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:16px}
-.panel h2{font-size:13px; font-weight:700; letter-spacing:.08em; color:var(--accent-ink);
-  margin:0 0 10px; padding-bottom:6px; border-bottom:1px solid var(--line)}
+/* ---------- 탭 1 ---------- */
+#t1{flex:1; min-height:0; display:flex; flex-direction:column; gap:8px}
+.steps{display:flex; gap:5px}
+.stepChip{flex:1; text-align:center; font-size:12px; padding:5px 3px; border-radius:8px;
+  background:#e3ebe7; color:#93a4ab; line-height:1.3; transition:all .25s}
+.stepChip b{font-weight:700}
+.stepChip.cur{background:var(--accent); color:#fff}
+.stepChip.done{background:#cfe0da; color:#4d6a63}
+.canvasWrap{position:relative; flex:1; min-height:0; border-radius:var(--radius); overflow:hidden;
+  background:#bfe0ef; box-shadow:0 1px 4px rgba(30,60,70,.12)}
+#cv1{position:absolute; inset:0; width:100%; height:100%; display:block}
+#repChip{position:absolute; left:12px; top:10px; background:rgba(255,255,255,.9); color:var(--accent-ink);
+  font-size:13px; font-weight:700; padding:5px 12px; border-radius:99px; box-shadow:0 1px 3px rgba(0,0,0,.15)}
 
-/* ---------- 왼쪽: 조작 패널 ---------- */
-.ctl{margin-bottom:14px}
-.ctl .name{font-weight:700; font-size:14px}
-.ctl .desc{font-size:12px; color:var(--ink-soft); margin:1px 0 6px; line-height:1.45}
+/* 하단 조작 막대: 단계 이름 + 한 문장 + 버튼 */
+.ctlBar{display:flex; gap:14px; align-items:flex-start; background:var(--card);
+  border:1px solid var(--line); border-radius:var(--radius); padding:10px 14px}
+.stepInfo{flex:1; min-width:0}
+.stepName{font-weight:700; font-size:16px}
+.stepCap{font-size:14px; color:var(--ink)}
+.whyBtn{border:0; background:#eaf1ee; color:var(--accent-ink); font:inherit; font-size:12px;
+  padding:3px 10px; border-radius:99px; cursor:pointer; margin-top:4px}
+.whyBtn:hover{background:#dde8e3}
+.whyBox{font-size:13px; color:var(--ink-soft); background:#f4f8f6; border-radius:8px;
+  padding:7px 10px; margin-top:5px; max-width:70ch}
+.keyline{font-size:13.5px; font-weight:500; color:#7a5c12; background:#fdf4dd;
+  border:1px solid #ecd9a0; border-radius:8px; padding:7px 12px; margin-top:6px; max-width:78ch}
+.navBtns{display:flex; gap:7px; flex-wrap:wrap; justify-content:flex-end; align-items:center}
+.nbtn{border:1px solid var(--line); background:var(--card); color:var(--ink);
+  font:inherit; font-size:14px; font-weight:500; padding:10px 14px; border-radius:9px;
+  cursor:pointer; min-height:42px; white-space:nowrap}
+.nbtn:hover{background:#f0f5f3}
+.nbtn.primary{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:700}
+.nbtn.primary:hover{background:var(--accent-ink)}
+.nbtn:disabled{opacity:.4; cursor:not-allowed}
+
+/* ---------- 탭 2 ---------- */
+#t2{flex:1; min-height:0; display:flex; flex-direction:column; gap:8px; overflow:auto}
+.chooser{display:flex; gap:14px; align-items:center; flex-wrap:wrap;
+  background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:9px 14px}
+.chLab{font-weight:700; font-size:14px}
 .seg{display:flex; gap:3px; background:#e8efec; border-radius:9px; padding:3px}
-.seg button{flex:1; border:0; background:transparent; border-radius:7px; padding:7px 2px;
-  font:inherit; font-size:13px; font-weight:500; color:var(--ink-soft); cursor:pointer}
+.seg button{border:0; background:transparent; border-radius:7px; padding:8px 14px;
+  font:inherit; font-size:13.5px; font-weight:500; color:var(--ink-soft); cursor:pointer; min-height:38px}
 .seg button:hover{background:#dde8e3}
 .seg button[aria-pressed="true"]{background:var(--accent); color:#fff; font-weight:700}
-.seg button:focus-visible{outline:2px solid var(--accent-ink); outline-offset:1px}
-.btns{display:flex; flex-direction:column; gap:8px; margin-top:16px}
-.btn{border:0; border-radius:9px; padding:12px 10px; font:inherit; font-size:15px; font-weight:700;
-  cursor:pointer; transition:transform .06s ease}
-.btn:active{transform:translateY(1px)}
-.btn:focus-visible{outline:2px solid var(--accent-ink); outline-offset:2px}
-.btn.primary{background:var(--accent); color:#fff}
-.btn.primary:hover{background:var(--accent-ink)}
-.btn.secondary{background:#e8efec; color:var(--accent-ink)}
-.btn.secondary:hover{background:#dde8e3}
-.btn.ghost{background:transparent; color:var(--ink-soft); border:1px solid var(--line)}
-.btn.ghost:hover{background:#f4f7f5}
-.btn:disabled{opacity:.45; cursor:not-allowed}
-.hint{font-size:12px; color:var(--ink-soft); margin-top:12px; line-height:1.5}
+.duoBtns{display:flex; gap:7px; margin-left:auto}
+.duo{flex:1; min-height:0; display:grid; grid-template-columns:1fr 1fr; gap:12px; position:relative}
+.duo figure{margin:0; display:flex; flex-direction:column; min-height:0; gap:6px}
+.duo figcaption{font-size:13.5px; font-weight:700; color:var(--accent-ink)}
+.duo figcaption small{font-weight:400; color:var(--ink-soft)}
+.cwrap{position:relative; flex:1; min-height:210px; border-radius:10px; overflow:hidden;
+  background:#c4e2ef; box-shadow:0 1px 3px rgba(30,60,70,.12)}
+.cwrap canvas{position:absolute; inset:0; width:100%; height:100%; display:block}
+.obs{list-style:none; margin:0; padding:0; display:grid; grid-template-columns:1fr 1fr; gap:4px 12px;
+  font-size:13px; min-height:52px}
+.obs li{background:var(--card); border:1px solid var(--line); border-radius:7px; padding:4px 10px}
+.obs li b{color:var(--accent-ink); font-weight:700; margin-right:6px}
+#duoHint{position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  background:rgba(238,244,242,.75); border-radius:10px; font-size:15px; color:var(--ink-soft); text-align:center; padding:20px}
 
-/* ---------- 가운데: 시뮬레이션 무대 ---------- */
-.stage{display:flex; flex-direction:column; gap:10px; min-width:0}
-.phasebar{display:flex; gap:6px}
-.phase{flex:1; background:var(--card); border:1px solid var(--line); border-radius:9px;
-  padding:6px 8px; font-size:12px; color:var(--ink-soft); line-height:1.35; transition:all .25s ease}
-.phase b{display:block; font-size:12px; color:inherit}
-.phase.on{background:var(--accent); border-color:var(--accent); color:#fff}
-.seaWrap{position:relative; flex:1; min-height:430px; border-radius:var(--radius);
-  overflow:hidden; border:1px solid var(--line); background:#bfe0ef}
-#sea{position:absolute; inset:0; width:100%; height:100%; display:block}
-#stageMsg{position:absolute; left:50%; top:12px; transform:translateX(-50%);
-  background:rgba(20,45,60,.78); color:#fff; font-size:14px; font-weight:500;
-  padding:7px 16px; border-radius:99px; white-space:nowrap; max-width:92%;
-  overflow:hidden; text-overflow:ellipsis; transition:opacity .3s}
-.legend{display:flex; gap:16px; justify-content:center; font-size:12.5px; color:var(--ink-soft)}
-.legend .sw{display:inline-block; width:14px; height:14px; border-radius:4px; vertical-align:-2px;
-  margin-right:5px; border:1px solid rgba(0,0,0,.15)}
+/* ---------- 하단 안내 ---------- */
+footer.tiny{font-size:11.5px; color:#8fa0a8; text-align:center; padding:1px 0}
 
-/* ---------- 오른쪽: 설명·피드백 패널 ---------- */
-.feedback{display:flex; flex-direction:column; gap:0; min-width:0}
-#events{list-style:none; margin:0 0 4px; padding:0; font-size:13.5px}
-#events li{padding:5px 0 5px 20px; position:relative; line-height:1.5; border-bottom:1px dashed var(--line)}
-#events li:last-child{border-bottom:0}
-#events li::before{content:""; position:absolute; left:2px; top:12px; width:8px; height:8px; border-radius:50%; background:var(--accent)}
-#events li.warnItem::before{background:var(--warn)}
-#events li.badItem::before{background:var(--bad)}
-#why{font-size:13.5px; color:var(--ink); background:#f4f8f6; border-left:3px solid var(--accent);
-  border-radius:0 8px 8px 0; padding:9px 12px; margin:0 0 14px; line-height:1.55}
-.coreWrap{display:flex; gap:12px; align-items:stretch}
-#core{flex:0 0 56px; display:flex; flex-direction:column-reverse; justify-content:flex-start;
-  min-height:150px; max-height:240px; overflow:hidden;
-  background:#f0f3f1; border:1px solid var(--line); border-radius:8px; padding:4px}
-#core .lyr{width:100%; border-radius:2px; margin-top:1px; flex-shrink:0}
-.coreNote{font-size:12px; color:var(--ink-soft); line-height:1.55; align-self:center}
-
-/* ---------- 하단: 핵심 개념 + 탐구 활동 ---------- */
-.bottom{display:grid; grid-template-columns:1.05fr 1.6fr; gap:14px; margin-top:14px}
-@media (max-width:1080px){ .bottom{grid-template-columns:1fr} }
-.keybox{background:#fdf6e3; border:2px solid #e4c968; border-radius:var(--radius); padding:18px 20px}
-.keybox .k{font-family:"Hahmlet",serif; font-weight:700; font-size:17px; color:#8a6d1c; margin-bottom:6px}
-.keybox p{margin:0; font-size:15px; line-height:1.65}
-.keybox strong{color:var(--accent-ink)}
-.keybox .fine{margin-top:10px; font-size:12px; color:var(--ink-soft)}
-.inquiry{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:16px 18px}
-.inquiry h2{font-size:13px; font-weight:700; letter-spacing:.08em; color:var(--accent-ink);
-  margin:0 0 10px; padding-bottom:6px; border-bottom:1px solid var(--line)}
-.qs{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:12px}
-@media (max-width:900px){ .qs{grid-template-columns:1fr} }
-.q{background:#f4f8f6; border-radius:9px; padding:10px 12px; font-size:13px; line-height:1.5}
-.q b{display:block; color:var(--accent-ink); font-size:12px; margin-bottom:3px}
-#notes{width:100%; min-height:64px; resize:vertical; border:1px solid var(--line); border-radius:9px;
-  padding:10px 12px; font:inherit; font-size:13.5px; background:#fbfdfc; color:var(--ink)}
-#notes:focus-visible{outline:2px solid var(--accent); outline-offset:0}
-.noteLab{font-size:13px; font-weight:700; margin-bottom:5px}
-.savedTip{font-size:11.5px; color:var(--ink-soft); margin-top:4px}
-
-@media (prefers-reduced-motion:reduce){
-  *{transition:none !important}
+/* ---------- 반응형 ---------- */
+@media (max-width:920px){
+  .app{height:auto; min-height:100dvh}
+  .brand{white-space:normal}
+  .brand small{display:none}
+  #t1 .canvasWrap{min-height:340px}
+  .duo{grid-template-columns:1fr}
+  .ctlBar{flex-direction:column}
+  .navBtns{justify-content:flex-start}
+  .tabs{margin-left:0}
 }
+@media (prefers-reduced-motion:reduce){ *{transition:none !important} }
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="app">
 
-  <!-- ===== 상단 제목 영역 ===== -->
+  <!-- ===== 상단: 제목 + 탭 ===== -->
   <header class="top">
-    <div>
-      <span class="eyebrow">고등학교 통합과학 · 지구의 역사</span>
-      <h1>스트로마톨라이트 만들기</h1>
-      <p class="sub">미생물 매트 → 퇴적물 부착 → 위로 다시 성장 → 광물 침전. 조건을 직접 조절하며
-        층상 구조가 어떻게 반복되어 만들어지는지 관찰해 보세요.</p>
-    </div>
-    <div class="stats">
-      <div class="stat"><span class="num" id="statCycle">0</span><span class="lab">현재 사이클</span></div>
-      <div class="stat"><span class="num" id="statLayers">0</span><span class="lab">형성된 층</span></div>
-      <div class="stat"><span class="badge" id="statQuality">아직 없음</span><span class="lab">형성 상태</span></div>
-    </div>
+    <div class="brand">스트로마톨라이트 만들기
+      <small>얇은 층 하나가 만들어지는 과정을 확대해서 관찰해 보세요</small></div>
+    <nav class="tabs" role="tablist">
+      <button class="tab" role="tab" id="tabBtn1" aria-selected="true">층이 만들어지는 과정</button>
+      <button class="tab" role="tab" id="tabBtn2" aria-selected="false">조건에 따라 달라지는 모습</button>
+    </nav>
   </header>
 
-  <main class="grid">
-
-    <!-- ===== 왼쪽: 조작 패널 ===== -->
-    <aside class="panel controls">
-      <h2>환경 조건 조절</h2>
-
-      <div class="ctl">
-        <div class="name">☀️ 햇빛</div>
-        <p class="desc">햇빛이 충분할수록 남세균(미생물층)이 잘 성장합니다.</p>
-        <div class="seg" role="group" aria-label="햇빛" data-group="sun">
-          <button type="button" data-value="약함">약함</button>
-          <button type="button" data-value="보통" aria-pressed="true">보통</button>
-          <button type="button" data-value="강함">강함</button>
-        </div>
-      </div>
-
-      <div class="ctl">
-        <div class="name">🟤 퇴적물 공급</div>
-        <p class="desc">적절한 양의 진흙·모래가 공급되어야 층이 잘 형성됩니다.</p>
-        <div class="seg" role="group" aria-label="퇴적물 공급" data-group="sed">
-          <button type="button" data-value="적음">적음</button>
-          <button type="button" data-value="보통" aria-pressed="true">보통</button>
-          <button type="button" data-value="많음">많음</button>
-        </div>
-      </div>
-
-      <div class="ctl">
-        <div class="name">🌊 물의 흐름</div>
-        <p class="desc">흐름이 너무 강하면 퇴적물이 쓸려가거나 미생물층이 불안정해집니다.</p>
-        <div class="seg" role="group" aria-label="물의 흐름" data-group="flow">
-          <button type="button" data-value="약함">약함</button>
-          <button type="button" data-value="보통" aria-pressed="true">보통</button>
-          <button type="button" data-value="강함">강함</button>
-        </div>
-      </div>
-
-      <div class="ctl">
-        <div class="name">⚪ 탄산칼슘 침전</div>
-        <p class="desc">광물 침전이 있으면 층이 더 뚜렷하게 보존됩니다.</p>
-        <div class="seg" role="group" aria-label="탄산칼슘 침전" data-group="ca">
-          <button type="button" data-value="낮음">낮음</button>
-          <button type="button" data-value="높음" aria-pressed="true">높음</button>
-        </div>
-      </div>
-
-      <div class="btns">
-        <button type="button" class="btn primary" id="btnOnce">▶ 한 사이클 진행</button>
-        <button type="button" class="btn secondary" id="btnAuto">⏩ 5회 자동 진행</button>
-        <button type="button" class="btn ghost" id="btnReset">↺ 초기화</button>
-      </div>
-
-      <p class="hint">조건을 바꾸어 가며 어떤 경우에 층상 구조가 잘 형성되는지 탐구해 보세요.</p>
-    </aside>
-
-    <!-- ===== 가운데: 시뮬레이션 영역 ===== -->
-    <section class="stage">
-      <div class="phasebar" id="phasebar">
-        <div class="phase" data-ph="FALL"><b>① 퇴적물 공급</b>진흙·모래가 가라앉음</div>
-        <div class="phase" data-ph="STICK"><b>② 점액질 부착</b>끈끈한 점액질이 붙잡음</div>
-        <div class="phase" data-ph="GROW"><b>③ 위로 다시 성장</b>광합성을 위해 위로</div>
-        <div class="phase" data-ph="MINERAL"><b>④ 광물 침전</b>탄산칼슘이 층을 굳힘</div>
-      </div>
-      <div class="seaWrap">
-        <canvas id="sea"></canvas>
-        <div id="stageMsg">조건을 고르고 ‘한 사이클 진행’을 눌러 보세요</div>
-      </div>
-      <div class="legend">
-        <span><span class="sw" style="background:#6b9a3c"></span>미생물층 (남세균 매트)</span>
-        <span><span class="sw" style="background:#a07c52"></span>퇴적층 (진흙·모래)</span>
-        <span><span class="sw" style="background:#efe6cd"></span>탄산칼슘 침전층</span>
-      </div>
-    </section>
-
-    <!-- ===== 오른쪽: 설명·피드백 패널 ===== -->
-    <aside class="panel feedback">
-      <h2>이번 사이클에서 일어난 일</h2>
-      <ul id="events">
-        <li>아직 진행된 사이클이 없습니다. 왼쪽에서 조건을 고르고 시작해 보세요.</li>
-      </ul>
-
-      <h2>왜 이런 결과가 나왔을까?</h2>
-      <p id="why">스트로마톨라이트는 미생물이 살아 움직이며 만드는 구조입니다.
-        퇴적물에 덮여도 미생물층이 빛을 향해 <b>위로 다시 자라기</b> 때문에 층이 반복됩니다.</p>
-
-      <h2>층 기록 (시추 코어처럼 보기)</h2>
-      <div class="coreWrap">
-        <div id="core" aria-label="누적된 층의 순서"></div>
-        <p class="coreNote">아래가 오래된 층, 위가 새로운 층입니다.<br>
-          실제 지질학자도 이런 <b>단면의 층 순서</b>를 읽어 과거 환경을 알아냅니다.</p>
-      </div>
-    </aside>
-  </main>
-
-  <!-- ===== 하단: 핵심 개념 + 탐구 활동 ===== -->
-  <section class="bottom">
-    <div class="keybox">
-      <div class="k">💡 핵심 개념</div>
-      <p>스트로마톨라이트는 남세균이 <strong>죽어서 쌓이는 것이 아니라</strong>,
-        퇴적물이 쌓일 때마다 미생물층이 <strong>위로 다시 성장</strong>하면서
-        층이 반복되어 만들어집니다.</p>
-      <p class="fine">※ 실제 스트로마톨라이트의 모양과 크기는 수온·염도·영양염·물의 흐름 등
-        환경 조건에 따라 다양합니다.</p>
+  <!-- ===== 탭 1: 층이 만들어지는 과정 ===== -->
+  <section id="t1" role="tabpanel">
+    <div class="steps" id="stepChips"></div>
+    <div class="canvasWrap">
+      <canvas id="cv1"></canvas>
+      <div id="repChip" hidden></div>
     </div>
-    <div class="inquiry">
-      <h2>탐구 활동</h2>
-      <div class="qs">
-        <div class="q"><b>탐구 질문 1</b>어떤 조건에서 층상 구조가 가장 뚜렷하게 만들어질까?</div>
-        <div class="q"><b>탐구 질문 2</b>퇴적물이 너무 많으면 어떤 문제가 생길까?</div>
-        <div class="q"><b>탐구 질문 3</b>탄산칼슘 침전이 있을 때와 없을 때를 비교해 보자.</div>
+    <div class="ctlBar">
+      <div class="stepInfo">
+        <span class="stepName" id="stepName"></span>
+        <span class="stepCap" id="stepCap"></span>
+        <button class="whyBtn" id="btnWhy" aria-expanded="false">왜 그럴까?</button>
+        <div class="whyBox" id="whyBox" hidden></div>
+        <div class="keyline" id="keyLine" hidden>스트로마톨라이트는 남세균을 포함한 미생물 매트가
+          퇴적물을 붙잡고, 새 표면에 다시 형성되는 과정이 반복되면서 만들어지는 층상 구조입니다.</div>
       </div>
-      <div class="noteLab">📝 관찰 결과 기록</div>
-      <textarea id="notes" placeholder="예) 물의 흐름을 ‘강함’으로 하니 퇴적물이 쓸려 나가서 층이 얇아졌다…"></textarea>
-      <p class="savedTip">입력한 내용은 이 컴퓨터의 브라우저에 자동 저장됩니다.</p>
+      <div class="navBtns">
+        <button class="nbtn" id="bPrev">◀ 이전 단계</button>
+        <button class="nbtn" id="bReplay">↺ 다시 보기</button>
+        <button class="nbtn" id="bPause">⏸ 일시정지</button>
+        <button class="nbtn primary" id="bNext">다음 단계 ▶</button>
+        <button class="nbtn" id="bRestart">처음부터</button>
+      </div>
     </div>
   </section>
+
+  <!-- ===== 탭 2: 조건에 따라 달라지는 모습 ===== -->
+  <section id="t2" role="tabpanel" hidden>
+    <div class="chooser">
+      <span class="chLab">어떤 조건을 바꾸어 볼까요?</span>
+      <div class="seg" id="varSeg" role="group" aria-label="바꿀 조건">
+        <button type="button" data-v="sed">퇴적물 공급량</button>
+        <button type="button" data-v="flow">물의 흐름</button>
+      </div>
+      <div class="seg" id="lvlSeg" role="group" aria-label="조건 수준" hidden></div>
+      <div class="duoBtns">
+        <button class="nbtn" id="dReplay">▶ 다시 재생</button>
+        <button class="nbtn" id="dPause">⏸ 일시정지</button>
+      </div>
+    </div>
+    <div class="duo">
+      <figure>
+        <figcaption>기준 조건 <small>· 퇴적물 보통 · 흐름 보통</small></figcaption>
+        <div class="cwrap"><canvas id="cvA"></canvas></div>
+        <ul class="obs" id="obsA"></ul>
+      </figure>
+      <figure>
+        <figcaption id="capB">바꾼 조건</figcaption>
+        <div class="cwrap"><canvas id="cvB"></canvas></div>
+        <ul class="obs" id="obsB"></ul>
+      </figure>
+      <div id="duoHint">위에서 바꿀 조건을 하나 선택하면,<br>기준 조건과 바꾼 조건의 화면이 동시에 재생됩니다.</div>
+    </div>
+  </section>
+
+  <footer class="tiny">※ 이 웹앱은 대표적인 형성 과정을 단순화한 모형입니다. 실제 스트로마톨라이트의 모양과 형성 과정은 환경에 따라 다양합니다.</footer>
 </div>
 
 <script>
 /* ============================================================
-   시뮬레이션 규칙 (교사 수정 지점)
-   - OPT: 각 조건 선택지가 계산에 미치는 배율
-   - BASE: 층 한 겹의 기본 두께(내부 단위)
+   공용 유틸
    ============================================================ */
-const OPT = {
-  sun : { '약함':0.55, '보통':1.00, '강함':1.35 },   // 미생물 성장 배율
-  sed : { '적음':0.50, '보통':1.00, '많음':1.70 },   // 퇴적물 공급량 배율
-  flow: { '약함':1.00, '보통':0.85, '강함':0.55 },   // 퇴적물이 남는 비율
-  ca  : { '낮음':0.35, '높음':1.00 },                // 탄산칼슘 침전 배율
-};
-const BASE = { sed:13, microbe:10, mineral:6, initMat:8 };  // 층 기본 두께
-const COLORS = {
-  microbe:'#6b9a3c', microbeEdge:'#4e7a28',
-  sed:'#a07c52',     sedEdge:'#82633f',
-  mineral:'#efe6cd', mineralEdge:'#d3c49b',
-};
-
-/* ---------- 상태 ---------- */
-const sel = { sun:'보통', sed:'보통', flow:'보통', ca:'높음' };  // 현재 선택된 조건
-let layers = [];          // 누적된 층 [{type:'microbe'|'sed'|'mineral', t:두께, prog:0~1}]
-let cycle = 0;            // 진행된 사이클 수
-let scores = [];          // 사이클별 형성 점수(종합 판정용)
-let phase = 'IDLE';       // 현재 애니메이션 단계
-let phaseT0 = 0;          // 단계 시작 시각
-let particles = [];       // 떨어지는 퇴적물 입자
-let autoLeft = 0;         // 자동 진행 남은 횟수
-let autoTimer = 0;        // 자동 진행 예약 타이머
-let cycleCalc = null;     // 이번 사이클 계산 결과
-const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const DUR = reduceMotion
-  ? { FALL:200, STICK:150, GROW:200, MINERAL:150, SETTLE:100 }
-  : { FALL:1700, STICK:900, GROW:1200, MINERAL:900, SETTLE:450 };
-
-/* ---------- 요소 ---------- */
-const canvas = document.getElementById('sea');
-const ctx = canvas.getContext('2d');
 const $ = id => document.getElementById(id);
-
-/* ---------- 초기 상태: 바닥의 얇은 미생물 매트 ---------- */
-function initLayers(){ layers = [{type:'microbe', t:BASE.initMat, prog:1}]; }
-initLayers();
-
-/* ---------- 조건 선택 버튼 ---------- */
-document.querySelectorAll('.seg').forEach(seg => {
-  seg.addEventListener('click', e => {
-    const btn = e.target.closest('button'); if(!btn) return;
-    seg.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b===btn));
-    sel[seg.dataset.group] = btn.dataset.value;
-  });
-});
-
-/* ============================================================
-   사이클 계산: 선택된 조건 → 이번 사이클의 층 두께와 피드백
-   ============================================================ */
-function computeCycle(){
-  const keep = OPT.flow[sel.flow];                       // 흐름에 따라 남는 비율
-  const sedT = BASE.sed * OPT.sed[sel.sed] * keep;       // 퇴적층 두께
-  const buried = sel.sed === '많음';                     // 깊이 묻힘 여부
-  const unstable = sel.flow === '강함';                  // 불안정 여부
-  let growT = BASE.microbe * OPT.sun[sel.sun];           // 미생물층 두께
-  if (buried)   growT *= 0.6;                            // 깊게 묻히면 성장 불리
-  if (unstable) growT *= 0.8;                            // 강한 흐름이면 매트 불안정
-  const minT = BASE.mineral * OPT.ca[sel.ca];            // 광물층 두께
-
-  // 형성 점수(0~100): 조건 조합으로 이번 사이클의 형성 정도를 평가
-  let s = 100;
-  if (sel.sun  === '약함') s -= 30;
-  if (sel.sed  === '적음') s -= 15;
-  if (sel.sed  === '많음') s -= 20;
-  if (sel.flow === '보통') s -= 5;
-  if (sel.flow === '강함') s -= 25;
-  s += (sel.ca === '높음') ? 8 : -8;
-  s = Math.max(0, Math.min(100, s));
-
-  // 피드백 문장 만들기
-  const events = [];
-  if (sel.sed === '보통')
-    events.push({t:'적절한 양의 퇴적물이 공급되어 미생물 매트 위에 새로운 퇴적층이 형성되었습니다.'});
-  else if (sel.sed === '적음')
-    events.push({t:'퇴적물 공급이 적어 이번 퇴적층은 얇게 형성되었습니다.', w:'warn'});
-  else
-    events.push({t:'퇴적물이 한꺼번에 많이 쌓여 미생물층이 깊이 묻혔습니다. 빛을 받아 다시 자라기 불리한 조건입니다.', w:'warn'});
-  if (sel.flow === '강함')
-    events.push({t:'물의 흐름이 너무 강하여 퇴적물의 일부가 쓸려 나갔고 층이 불안정해졌습니다.', w:'bad'});
-  events.push({t:'끈끈한 점액질이 가라앉은 진흙·모래를 매트 표면에 붙잡았습니다.'});
-  if (sel.sun === '약함')
-    events.push({t:'햇빛이 부족하여 미생물층이 퇴적물 위로 충분히 성장하지 못했습니다.', w:'bad'});
-  else if (sel.sun === '강함')
-    events.push({t:'햇빛이 강하여 미생물층이 퇴적물 위로 활발하게 다시 성장했습니다.'});
-  else
-    events.push({t:'햇빛이 충분하여 미생물층이 퇴적물 위로 다시 성장했습니다.'});
-  if (sel.ca === '높음')
-    events.push({t:'탄산칼슘 침전이 활발하여 층 구조가 더 뚜렷하게 보존됩니다.'});
-  else
-    events.push({t:'광물 침전이 적어 층의 경계가 상대적으로 흐릿하게 남습니다.', w:'warn'});
-
-  // "왜?" 설명: 핵심 원리 + 조건별 해설
-  let why = '퇴적물에 덮인 미생물이 광합성을 하려면 빛이 필요하므로, 미생물층은 퇴적층을 뚫고 위로 다시 자랍니다. 이 반복이 줄무늬(층상 구조)를 만듭니다. ';
-  if (s >= 85)      why += '지금은 햇빛·퇴적물·물의 흐름이 모두 알맞아 층이 규칙적으로 잘 쌓이는 조건입니다.';
-  else if (sel.sun === '약함') why += '다만 지금은 빛이 부족해 미생물층이 얇아서, 층의 반복이 뚜렷하게 이어지기 어렵습니다.';
-  else if (sel.flow === '강함') why += '다만 지금은 물살이 세서 퇴적물이 자리 잡기 전에 쓸려 나가, 층이 고르게 만들어지기 어렵습니다.';
-  else if (sel.sed === '많음') why += '다만 지금은 퇴적물이 너무 많아 미생물이 깊이 묻히면서, 위로 다시 자라는 데 시간이 오래 걸립니다.';
-  else if (sel.sed === '적음') why += '다만 지금은 퇴적물이 적어 층이 얇게만 만들어져 구조가 잘 드러나지 않습니다.';
-  else why += '조건이 대체로 무난하여 층이 형성되고 있습니다.';
-
-  return { sedT, growT, minT, score:s, events, why };
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;  // 동작 줄이기 설정
+function mulberry32(seed){                       // 재현 가능한 난수(다시 보기 시 동일한 장면)
+  return function(){ seed|=0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed>>>15, 1|seed);
+    t = t + Math.imul(t ^ t>>>7, 61|t) ^ t;
+    return ((t ^ t>>>14) >>> 0) / 4294967296; };
 }
+const clamp01 = v => v<0?0:v>1?1:v;
+const ease = t => { t=clamp01(t); return t*t*(3-2*t); };
+const lerp = (a,b,t) => a+(b-a)*t;
 
-/* ---------- 종합 판정 ---------- */
-function ratingOf(avg){
-  if (avg >= 85) return {txt:'매우 잘 형성됨', cls:'good'};
-  if (avg >= 65) return {txt:'비교적 잘 형성됨', cls:'ok'};
-  if (avg >= 40) return {txt:'불안정하게 형성됨', cls:'warn'};
-  return {txt:'잘 형성되지 않음', cls:'bad'};
-}
-
-/* ---------- 화면 갱신 ---------- */
-function updateHud(){
-  $('statCycle').textContent = cycle;
-  $('statLayers').textContent = Math.max(0, layers.length - 1);
-  const q = $('statQuality');
-  if (!scores.length){ q.textContent = '아직 없음'; q.className = 'badge'; }
-  else {
-    const avg = scores.reduce((a,b)=>a+b,0) / scores.length;
-    const r = ratingOf(avg);
-    q.textContent = r.txt; q.className = 'badge ' + r.cls;
-  }
-}
-function updateFeedback(calc){
-  const ul = $('events'); ul.innerHTML = '';
-  calc.events.forEach(ev => {
-    const li = document.createElement('li');
-    li.textContent = ev.t;
-    if (ev.w) li.className = ev.w + 'Item';
-    ul.appendChild(li);
-  });
-  $('why').textContent = calc.why;
-}
-function updateCore(){
-  const core = $('core'); core.innerHTML = '';
-  layers.forEach(L => {
-    const d = document.createElement('div');
-    d.className = 'lyr';
-    d.style.height = Math.max(2.5, L.t * 1.5) + 'px';
-    d.style.background = COLORS[L.type];
-    core.appendChild(d);
-  });
-}
-function setPhaseUi(ph, msg){
-  document.querySelectorAll('.phase').forEach(p => p.classList.toggle('on', p.dataset.ph === ph));
-  const m = $('stageMsg');
-  if (msg){ m.textContent = msg; m.style.opacity = 1; }
-}
-
-/* ============================================================
-   사이클 진행 (단계 상태 기계)
-   FALL → STICK → GROW → MINERAL → SETTLE → IDLE
-   ============================================================ */
-function startCycle(){
-  if (phase !== 'IDLE') return;
-  cycleCalc = computeCycle();
-  spawnParticles();
-  phase = 'FALL'; phaseT0 = performance.now();
-  setPhaseUi('FALL', '① 진흙·모래가 물속에서 가라앉고 있어요' + (sel.flow==='강함' ? ' — 일부는 물살에 쓸려 가요!' : ''));
-  $('btnOnce').disabled = true;
-  $('btnReset').disabled = true;
-  if (autoLeft <= 0) $('btnAuto').disabled = true;
-}
-
-function stepPhase(now){
-  const el = now - phaseT0;
-  if (phase === 'FALL' && el >= DUR.FALL){
-    // 퇴적층을 쌓기 시작
-    layers.push({type:'sed', t:cycleCalc.sedT, prog:0, anim:true});
-    phase = 'STICK'; phaseT0 = now;
-    setPhaseUi('STICK', '② 미생물 매트의 끈끈한 점액질이 퇴적물을 붙잡았어요');
-  } else if (phase === 'STICK'){
-    const L = layers[layers.length-1];
-    L.prog = Math.min(1, el / (DUR.STICK*0.7));
-    if (el >= DUR.STICK){
-      L.prog = 1; L.anim = false;
-      layers.push({type:'microbe', t:cycleCalc.growT, prog:0, anim:true});
-      phase = 'GROW'; phaseT0 = now;
-      setPhaseUi('GROW', '③ 미생물층이 광합성을 위해 빛을 향해 위로 다시 자라요');
-    }
-  } else if (phase === 'GROW'){
-    const L = layers[layers.length-1];
-    L.prog = Math.min(1, el / DUR.GROW);
-    if (el >= DUR.GROW){
-      L.prog = 1; L.anim = false;
-      layers.push({type:'mineral', t:cycleCalc.minT, prog:0, anim:true});
-      phase = 'MINERAL'; phaseT0 = now;
-      setPhaseUi('MINERAL', sel.ca==='높음'
-        ? '④ 탄산칼슘이 활발히 침전되어 층을 단단하게 굳혀요'
-        : '④ 탄산칼슘 침전이 적어 광물층이 얇게만 생겨요');
-    }
-  } else if (phase === 'MINERAL'){
-    const L = layers[layers.length-1];
-    L.prog = Math.min(1, el / DUR.MINERAL);
-    if (el >= DUR.MINERAL){
-      L.prog = 1; L.anim = false;
-      phase = 'SETTLE'; phaseT0 = now;
-    }
-  } else if (phase === 'SETTLE' && el >= DUR.SETTLE){
-    finishCycle(now);
-  }
-}
-
-function finishCycle(now){
-  cycle += 1;
-  scores.push(cycleCalc.score);
-  updateHud(); updateFeedback(cycleCalc); updateCore();
-  particles = [];
-  phase = 'IDLE';
-  setPhaseUi(null, cycle >= 3
-    ? `사이클 ${cycle}회 완료 — 층이 ${layers.length-1}겹으로 쌓였어요`
-    : `사이클 ${cycle}회 완료 — 같은 과정이 반복되면 층이 계속 쌓여요`);
-  if (autoLeft > 0){
-    autoLeft -= 1;
-    if (autoLeft > 0){ autoTimer = setTimeout(startCycle, reduceMotion ? 150 : 650); return; }
-    $('btnAuto').textContent = '⏩ 5회 자동 진행';
-  }
-  $('btnOnce').disabled = false;
-  $('btnAuto').disabled = false;
-  $('btnReset').disabled = false;
-}
-
-/* ---------- 버튼 ---------- */
-$('btnOnce').addEventListener('click', () => { autoLeft = 0; startCycle(); });
-$('btnAuto').addEventListener('click', () => {
-  if (autoLeft > 0){                                    // 진행 중이면 정지
-    autoLeft = 0; clearTimeout(autoTimer);
-    $('btnAuto').textContent = '⏩ 5회 자동 진행';
-    if (phase === 'IDLE'){ $('btnOnce').disabled = false; $('btnReset').disabled = false; }
-    return;
-  }
-  autoLeft = 5; $('btnAuto').textContent = '■ 자동 진행 정지';
-  startCycle();
-});
-$('btnReset').addEventListener('click', () => {
-  if (phase !== 'IDLE') return;
-  initLayers(); cycle = 0; scores = []; particles = []; autoLeft = 0; cycleCalc = null;
-  $('btnAuto').textContent = '⏩ 5회 자동 진행';
-  updateHud(); updateCore();
-  $('events').innerHTML = '<li>초기화되었습니다. 조건을 바꾸어 다시 탐구해 보세요.</li>';
-  $('why').textContent = '스트로마톨라이트는 미생물이 살아 움직이며 만드는 구조입니다. 퇴적물에 덮여도 미생물층이 빛을 향해 위로 다시 자라기 때문에 층이 반복됩니다.';
-  setPhaseUi(null, '조건을 고르고 ‘한 사이클 진행’을 눌러 보세요');
-});
-
-/* ============================================================
-   그리기: 얕은 바다 단면 + 돔형 누적 단면
-   ============================================================ */
-let W = 0, H = 0;
-function resize(){
+function fitCanvas(cv){
   const dpr = window.devicePixelRatio || 1;
-  const r = canvas.parentElement.getBoundingClientRect();
-  W = Math.max(320, r.width); H = Math.max(300, r.height);
-  canvas.width = W * dpr; canvas.height = H * dpr;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-}
-new ResizeObserver(resize).observe(canvas.parentElement);
-resize();
-
-// 돔의 기하: 층 두께 합 → 화면상 높이·폭
-function domeGeom(){
-  const totalU = layers.reduce((a,L)=>a + L.t * (L.prog ?? 1), 0);
-  const maxHpx = H * 0.52;
-  const s = Math.min(2.1, maxHpx / Math.max(totalU, 1));   // 두께 단위 → 픽셀 배율
-  const Htot = totalU * s;
-  const R = Math.min(W * 0.36, 90 + Htot * 1.25);          // 돔 반폭
-  return { s, Htot, R, cx: W * 0.5, baseY: H * 0.86 };
-}
-// 돔 표면의 y좌표(입자 착지 계산용)
-function surfaceY(x, g){
-  const dx = Math.abs(x - g.cx);
-  if (g.Htot < 2 || dx >= g.R) return g.baseY - 3;
-  return g.baseY - g.Htot * Math.sqrt(1 - (dx/g.R)*(dx/g.R));
+  const r = cv.parentElement.getBoundingClientRect();
+  if (r.width < 10 || r.height < 10) return false;
+  cv._w = r.width; cv._h = r.height;
+  cv.width = Math.round(r.width*dpr); cv.height = Math.round(r.height*dpr);
+  cv.getContext('2d').setTransform(dpr,0,0,dpr,0,0);
+  return true;
 }
 
-/* ---------- 퇴적물 입자 ---------- */
-function spawnParticles(){
-  particles = [];
-  const n = Math.round(10 * OPT.sed[sel.sed]) + 5;
-  const washN = Math.round(n * (1 - OPT.flow[sel.flow]));  // 쓸려 나갈 입자 수
-  for (let i = 0; i < n; i++){
-    particles.push({
-      x: W*0.5 + (Math.random()-0.5) * W*0.55,
-      y: 20 + Math.random() * H*0.25,
-      vy: 0.9 + Math.random()*1.1,
-      vx: 0,
-      r: 2 + Math.random()*2.2,
-      washed: i < washN,       // 흐름에 쓸려 나가는 입자
-      landed: false, alpha: 1,
-      delay: Math.random() * DUR.FALL * 0.45,
-      born: performance.now(),
-    });
-  }
-}
-function stepParticles(now, g){
-  const flowV = { '약함':0.4, '보통':1.0, '강함':2.6 }[sel.flow];
-  particles.forEach(p => {
-    if (p.landed) return;
-    if (now - p.born < p.delay) return;
-    p.y += p.vy * (reduceMotion ? 4 : 1);
-    p.x += p.vx + flowV * 0.25;
-    if (p.washed && p.y > H*0.45){ p.vx += 0.25; p.alpha -= 0.03; } // 물살에 쓸림
-    const sy = surfaceY(p.x, g);
-    if (!p.washed && p.y >= sy){ p.y = sy; p.landed = true; }
-    if (p.alpha <= 0 || p.x > W + 20) p.landed = true;
-  });
-}
-
-/* ---------- 매 프레임 그리기 ---------- */
-let flowPhase = 0;
-function draw(now){
-  const g = domeGeom();
-
-  // 바닷물: 위가 밝고 아래로 갈수록 짙게
-  const wg = ctx.createLinearGradient(0, 0, 0, H);
-  wg.addColorStop(0, '#cdeaf6'); wg.addColorStop(0.55, '#7db8d8'); wg.addColorStop(1, '#4e93bd');
-  ctx.fillStyle = wg; ctx.fillRect(0, 0, W, H);
-
-  // 햇빛: 세기에 따라 밝기가 달라짐
-  const sunA = { '약함':0.16, '보통':0.34, '강함':0.55 }[sel.sun];
-  const sg = ctx.createRadialGradient(W*0.2, -40, 10, W*0.2, -40, H*0.85);
-  sg.addColorStop(0, `rgba(255,244,190,${sunA})`);
-  sg.addColorStop(1, 'rgba(255,244,190,0)');
-  ctx.fillStyle = sg; ctx.fillRect(0, 0, W, H);
-  ctx.save();                                  // 빛줄기
-  ctx.globalAlpha = sunA * 0.55;
-  ctx.fillStyle = '#fff7cf';
-  for (let i = 0; i < 3; i++){
-    const bx = W * (0.10 + i*0.09);
-    ctx.beginPath();
-    ctx.moveTo(bx, 0); ctx.lineTo(bx + 46, 0);
-    ctx.lineTo(bx + W*0.16 + 46, H*0.8); ctx.lineTo(bx + W*0.16, H*0.8);
-    ctx.closePath(); ctx.fill();
-  }
+/* 캔버스 위 짧은 표지(지시선 + 글자) */
+function drawLabel(ctx, txt, ax, ay, tx, ty, alpha){
+  if (alpha <= 0.01) return;
+  ctx.save(); ctx.globalAlpha = Math.min(1, alpha);
+  ctx.strokeStyle = '#33424b'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(tx, ty); ctx.stroke();
+  ctx.font = '500 11.5px "IBM Plex Sans KR", sans-serif';
+  const w = ctx.measureText(txt).width;
+  const bx = tx - (tx > ax ? 4 : w+4), by = ty - 18;
+  ctx.fillStyle = 'rgba(255,255,255,.9)';
+  ctx.beginPath(); ctx.roundRect(bx-5, by, w+10, 20, 5); ctx.fill();
+  ctx.fillStyle = '#243640'; ctx.fillText(txt, bx, by+14);
   ctx.restore();
+}
+/* 물 배경 + 은은한 빛 */
+function drawWater(ctx, W, H){
+  const g = ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#cdeaf6'); g.addColorStop(0.6,'#8cc0dc'); g.addColorStop(1,'#6aa8c9');
+  ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+  const s = ctx.createRadialGradient(W*0.25,-30,10, W*0.25,-30,H*0.9);
+  s.addColorStop(0,'rgba(255,246,205,.35)'); s.addColorStop(1,'rgba(255,246,205,0)');
+  ctx.fillStyle = s; ctx.fillRect(0,0,W,H);
+}
 
-  // 물의 흐름 표시(떠다니는 흐름선)
-  if (!reduceMotion){
-    flowPhase += { '약함':0.35, '보통':0.9, '강함':2.4 }[sel.flow];
-    ctx.save(); ctx.globalAlpha = 0.35; ctx.strokeStyle = '#eaf6fb'; ctx.lineWidth = 2; ctx.lineCap = 'round';
-    for (let i = 0; i < 4; i++){
-      const y = H * (0.14 + i*0.11);
-      const x = ((flowPhase * 1.6 + i*173) % (W + 160)) - 80;
-      ctx.beginPath(); ctx.moveTo(x, y);
-      ctx.quadraticCurveTo(x+22, y-4, x+44, y); ctx.stroke();
-    }
-    ctx.restore();
+/* ============================================================
+   탭 1 — 단계 정의
+   ============================================================ */
+const STEPS = [
+  { no:'①', name:'미생물 매트', dur:3000,
+    cap:'남세균을 포함한 미생물들이 해저 표면에 얇은 매트를 이룹니다.',
+    why:'매트의 미생물은 광합성으로 살아가며 끈끈한 점액질(EPS)을 분비합니다. 이 점액질이 다음 단계에서 핵심 역할을 합니다.' },
+  { no:'②', name:'퇴적물 도착', dur:3500,
+    cap:'물에 실려 온 미세한 퇴적물이 미생물 매트 표면에 내려앉습니다.',
+    why:'얕은 바다에서는 물결을 따라 진흙·모래 같은 미세한 입자가 끊임없이 운반되어 옵니다.' },
+  { no:'③', name:'포획과 결합', dur:3500,
+    cap:'미생물이 만든 끈끈한 물질이 퇴적물을 붙잡아 쉽게 흩어지지 않게 합니다.',
+    why:'점액질이 없다면 입자들은 물살에 다시 쓸려 갔을 것입니다. 살아 있는 매트가 있어야 퇴적물이 표면에 남습니다.' },
+  { no:'④', name:'새 표면 형성', dur:4000,
+    cap:'일부 미생물이 퇴적물 사이를 따라 위로 이동하고 성장해 새 표면에 매트를 만듭니다.',
+    why:'묻힌 미생물이 모두 이동하는 것은 아닙니다. 일부가 입자 사이 틈을 따라 이동하거나 성장하여, 빛이 닿는 새 표면에 매트를 다시 만듭니다.' },
+  { no:'⑤', name:'광물 침전', dur:3000,
+    cap:'일부 환경에서는 탄산염 광물이 입자 사이에 침전하여 층을 더 단단하게 보존합니다.',
+    why:'탄산염 결정은 입자 사이 틈과 매트 내부에서 자라며 층을 시멘트처럼 굳힙니다. 모든 스트로마톨라이트에서 똑같이 일어나는 과정은 아닙니다.' },
+  { no:'⑥', name:'한 층 완성', dur:2500,
+    cap:'한 번의 반복으로 얇은 층 하나가 남았습니다.',
+    why:'이 얇은 층 하나가 오랜 시간 수없이 반복되어 쌓인 것이 스트로마톨라이트의 줄무늬입니다.' },
+];
+const REPEAT_INFO = {
+  name:'오랜 시간의 반복',
+  capRun:'방금 관찰한 과정이 여러 차례 반복되며 층이 하나씩 늘어납니다.',
+  capEnd:'이 과정이 오랫동안 반복되면서 돔 모양의 층상 구조가 성장합니다.',
+  why:'층의 두께와 모양은 그때그때의 환경에 따라 조금씩 다르게 남습니다. 그래서 실제 단면의 줄무늬도 완벽하게 규칙적이지 않습니다.' };
+
+/* ============================================================
+   탭 1 — 확대 관찰 장면 만들기 (고정 시드 → 다시 보기 시 동일)
+   ============================================================ */
+function buildScene(W, H){
+  const rnd = mulberry32(20260831);
+  const S = { W, H };
+  S.surf = x => H*0.55 + 7*Math.sin(x/95+1.2) + 4*Math.sin(x/41+0.5);  // 처음 표면
+
+  // 매트 세포·필라멘트(남세균 포함 미생물)
+  S.cells = [];
+  for (let x=14; x<W-14; x+=9+rnd()*8)
+    S.cells.push({ x, y:S.surf(x)-3-rnd()*4, r:2+rnd()*1.6, fil:rnd()<0.35,
+                   len:6+rnd()*8, ph:rnd()*6.28, d:rnd()*0.6 });
+  // 점액질(EPS) 방울
+  S.eps = [];
+  for (let x=24; x<W-24; x+=26+rnd()*30)
+    S.eps.push({ x, y:S.surf(x)-5, rx:16+rnd()*14, ry:8+rnd()*5, d:rnd()*0.5 });
+
+  // 퇴적물 입자: 착지 위치·쌓임 높이를 미리 계산
+  S.parts = [];
+  const BK = 18, buckets = new Array(Math.ceil(W/BK)).fill(0);
+  for (let i=0; i<56; i++){
+    const swept = rnd() < 0.2;
+    const lx = 26 + rnd()*(W-52);
+    const size = 3.2 + rnd()*4.2;
+    let off = 0;
+    if (!swept){ const b=Math.floor(lx/BK); off = buckets[b]*size*0.85; buckets[b]++; }
+    const verts = [], nv = 5+Math.floor(rnd()*3);
+    for (let k=0;k<nv;k++){ const a=k/nv*6.283, rr=size*(0.65+rnd()*0.5);
+      verts.push([Math.cos(a)*rr, Math.sin(a)*rr*0.8]); }
+    S.parts.push({ sx: lx-50+rnd()*100, sy: -15-rnd()*H*0.42,
+      lx, ly:S.surf(lx)-7-off, size, verts, swept,
+      ph:rnd()*6.28, d:rnd()*0.45, sd:rnd()*0.5, hue:rnd() });
   }
+  // 퇴적물 덮개(고운 진흙 기질)의 두께 — 붙잡힌 입자 밀도에서
+  const th = buckets.map(c => 4 + c*4.2);
+  const sm = th.map((v,i)=>((th[i-1]??v)+v+(th[i+1]??v))/3);
+  S.cover = x => sm[Math.max(0,Math.min(sm.length-1,Math.floor(x/BK)))];
+  S.newSurf = x => S.surf(x) - 7 - S.cover(x);
 
-  // 해저 바닥
-  const fg = ctx.createLinearGradient(0, g.baseY, 0, H);
-  fg.addColorStop(0, '#c8b58e'); fg.addColorStop(1, '#a08758');
-  ctx.fillStyle = fg; ctx.fillRect(0, g.baseY, W, H - g.baseY);
-  ctx.fillStyle = 'rgba(120,98,64,0.5)';       // 바닥의 돌멩이
-  [[0.12,7],[0.2,5],[0.78,8],[0.9,5],[0.68,4]].forEach(([fx,r]) => {
-    ctx.beginPath(); ctx.ellipse(W*fx, g.baseY+9, r*1.5, r, 0, 0, Math.PI*2); ctx.fill();
+  // 위로 이동하는 미생물(개별 세포) — 입자 틈을 따라가는 경로
+  S.migrants = [];
+  for (let i=0; i<9; i++){
+    const x = 40+rnd()*(W-80), y0 = S.surf(x)-4, y1 = S.newSurf(x)-2;
+    const path = [[x,y0]];
+    for (let k=1;k<=3;k++) path.push([x+(rnd()-0.5)*26, lerp(y0,y1,k/3)]);
+    S.migrants.push({ path, d:rnd()*0.4, r:2+rnd() });
+  }
+  // 위로 성장하는 필라멘트
+  S.fils = [];
+  for (let i=0; i<5; i++){ const x=60+rnd()*(W-120);
+    S.fils.push({ x, y0:S.surf(x)-4, y1:S.newSurf(x)-2, ph:rnd()*6.28, d:rnd()*0.35 }); }
+  // 새 표면의 매트 세포
+  S.newCells = [];
+  for (let x=16; x<W-16; x+=10+rnd()*9)
+    S.newCells.push({ x, y:S.newSurf(x)-2-rnd()*3, r:2+rnd()*1.5, d:rnd()*0.7, ph:rnd()*6.28 });
+  // 탄산염 결정 — 입자 사이 공극과 매트 내부
+  S.crys = [];
+  for (let i=0; i<26; i++){ const x=30+rnd()*(W-60);
+    const yT=S.newSurf(x)+2, yB=S.surf(x)-2;
+    S.crys.push({ x, y:lerp(yT,yB,rnd()), s:2+rnd()*2.1, d:i/26*0.8, rot:rnd()*3.14 }); }
+  return S;
+}
+
+/* ---------- 확대 관찰 장면 그리기 (단계 si, 진행도 p) ---------- */
+function drawMicro(ctx, S, si, p, t){
+  const {W,H} = S;
+  drawWater(ctx, W, H);
+
+  // 기질(오래된 해저 퇴적물)
+  ctx.beginPath(); ctx.moveTo(0,H);
+  for (let x=0; x<=W; x+=8) ctx.lineTo(x, S.surf(x));
+  ctx.lineTo(W,H); ctx.closePath();
+  ctx.fillStyle = '#b19878'; ctx.fill();
+  ctx.strokeStyle = 'rgba(90,70,45,.18)';
+  [20,38].forEach(dy => { ctx.beginPath();
+    for (let x=0; x<=W; x+=10){ const y=S.surf(x)+dy; x?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+    ctx.stroke(); });
+
+  const wig = RM ? 0 : Math.sin(t*2);
+
+  // --- 점액질(EPS) ---
+  const epsA = si===0 ? null : (si>=3 ? 0.45 : 1);
+  S.eps.forEach(e => {
+    const a = si===0 ? ease((p-e.d)/0.6) : epsA;
+    if (a<=0.01) return;
+    const g = ctx.createRadialGradient(e.x,e.y,1, e.x,e.y,e.rx);
+    g.addColorStop(0,`rgba(215,232,150,${0.5*a})`); g.addColorStop(1,'rgba(215,232,150,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.ellipse(e.x, e.y, e.rx*(si===0?a:1), e.ry, 0, 0, 6.283); ctx.fill();
   });
 
-  // ===== 돔형 누적 단면: 바깥(최신) 층부터 안쪽으로 그려 띠가 보이게 함 =====
-  const cums = [];                              // 각 층까지의 누적 높이(px)
-  let acc = 0;
-  layers.forEach(L => { acc += L.t * (L.prog ?? 1) * g.s; cums.push(acc); });
-  for (let i = layers.length - 1; i >= 0; i--){
-    const h = cums[i]; if (h < 0.5) continue;
-    const rx = Math.max(64, g.R * Math.pow(h / Math.max(g.Htot,1), 0.85));
+  // --- 처음의 미생물 매트 ---
+  const oldDead = si>=3;
+  const deadA = si===3 ? lerp(1,0.55,ease(p*1.4)) : (si>3 ? 0.55 : 1);
+  S.cells.forEach((c,i) => {
+    const a = si===0 ? ease((p-c.d)/0.5) : 1;
+    if (a<=0.01) return;
+    ctx.globalAlpha = a * (oldDead ? deadA : 1);
+    const col = oldDead ? '#5d6152' : (i%2 ? '#2e8b6e' : '#4f9a49');
+    if (c.fil){
+      ctx.strokeStyle = col; ctx.lineWidth = 1.6; ctx.beginPath();
+      ctx.moveTo(c.x, c.y+3);
+      ctx.quadraticCurveTo(c.x + wig*2.4, c.y-c.len*0.5, c.x + wig*3.6, c.y-c.len);
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(c.x, c.y, c.r, c.r*0.8, 0, 0, 6.283); ctx.fill();
+    }
+  });
+  ctx.globalAlpha = 1;
+
+  // --- 옛 표면 점선 표시 (④부터) ---
+  if (si>=3){
+    const prog = si===3 ? ease(p*1.5) : 1;
+    ctx.save(); ctx.setLineDash([5,4]); ctx.strokeStyle='rgba(70,62,45,.65)'; ctx.lineWidth=1.4;
     ctx.beginPath();
-    ctx.moveTo(g.cx - rx, g.baseY);
-    ctx.ellipse(g.cx, g.baseY, rx, h, 0, Math.PI, Math.PI*2);
-    ctx.closePath();
-    ctx.fillStyle = COLORS[layers[i].type];
-    ctx.fill();
-    ctx.strokeStyle = COLORS[layers[i].type + 'Edge'];
-    ctx.lineWidth = 1;
-    ctx.stroke();
-  }
-  // 성장 중인 미생물층의 반짝임 표시
-  if (phase === 'GROW' && !reduceMotion){
-    ctx.save(); ctx.globalAlpha = 0.5 + 0.3*Math.sin(now/120);
-    ctx.strokeStyle = '#d9f2a8'; ctx.lineWidth = 2.5;
-    const h = g.Htot, rx = Math.max(24, g.R);
-    ctx.beginPath(); ctx.ellipse(g.cx, g.baseY, rx, h, 0, Math.PI*1.15, Math.PI*1.85);
+    const xe = W*prog;
+    for (let x=0; x<=xe; x+=8){ const y=S.surf(x)-5; x?ctx.lineTo(x,y):ctx.moveTo(x,y); }
     ctx.stroke(); ctx.restore();
   }
-  // 광물 침전 반짝임
-  if (phase === 'MINERAL' && sel.ca === '높음' && !reduceMotion){
-    ctx.save(); ctx.fillStyle = '#ffffff';
-    for (let i = 0; i < 8; i++){
-      const a = Math.PI + (i/7) * Math.PI;
-      const tw = 0.4 + 0.6 * Math.abs(Math.sin(now/150 + i*1.7));
-      ctx.globalAlpha = tw * 0.8;
-      const px = g.cx + Math.cos(a) * g.R * 0.8;
-      const py = g.baseY + Math.sin(a) * g.Htot * 0.9 - 6;
-      ctx.beginPath(); ctx.arc(px, py, 1.8, 0, Math.PI*2); ctx.fill();
+
+  // --- 퇴적물 덮개(고운 진흙 기질) : ③에서 서서히 ---
+  if (si>=2){
+    const cp = si===2 ? ease(p) : 1;
+    ctx.beginPath();
+    for (let x=0; x<=W; x+=8){
+      const y = lerp(S.surf(x)-5, S.newSurf(x), cp);
+      x?ctx.lineTo(x,y):ctx.moveTo(x,y);
     }
+    for (let x=W; x>=0; x-=8) ctx.lineTo(x, S.surf(x)-4);
+    ctx.closePath(); ctx.fillStyle = `rgba(158,124,84,${0.55*cp})`; ctx.fill();
+  }
+
+  // --- 퇴적물 입자 ---
+  S.parts.forEach(pt => {
+    let x, y, a = 1;
+    if (si < 1) return;
+    if (si === 1){                                   // ② 내려오는 중 (표면 근처에서 느려짐)
+      const q = ease((p*1.2 - pt.d)/0.7);
+      if (q<=0) return;
+      const hy = pt.swept ? pt.ly-26 : pt.ly-12;
+      x = lerp(pt.sx, pt.lx, q) + Math.sin(t*1.6+pt.ph)*4*(1-q) + (pt.swept? q*30 : 0);
+      y = lerp(pt.sy, hy, q);
+    } else if (si === 2){                            // ③ 포획 또는 쓸려감
+      const q = ease((p - pt.sd)/0.5);
+      if (pt.swept){
+        x = pt.lx + 30 + q*(W*0.5); y = pt.ly-26 + Math.sin(t*2+pt.ph)*3;
+        a = 1 - ease((x-(W-60))/60);
+        if (a<=0.01) return;
+      } else { x = pt.lx; y = lerp(pt.ly-12, pt.ly, q); }
+    } else {                                         // ④~ 자리에 고정
+      if (pt.swept) return;
+      x = pt.lx; y = pt.ly;
+    }
+    ctx.save(); ctx.translate(x,y); ctx.globalAlpha = a;
+    ctx.fillStyle = `rgb(${140+pt.hue*40|0},${104+pt.hue*30|0},${70+pt.hue*22|0})`;
+    ctx.beginPath(); pt.verts.forEach((v,k)=> k?ctx.lineTo(v[0],v[1]):ctx.moveTo(v[0],v[1]));
+    ctx.closePath(); ctx.fill();
+    if (si>=4){                                     // ⑤ 결정이 늘며 입자 고정(윤곽 진해짐)
+      ctx.globalAlpha = a * (si===4 ? p : 1) * 0.5;
+      ctx.strokeStyle = '#5f4c33'; ctx.lineWidth = 1; ctx.stroke();
+    }
+    ctx.restore();
+    // ③ 점액질이 입자를 감싸는 모습
+    if (si===2 && !pt.swept){
+      const q = ease((p - pt.sd - 0.25)/0.4);
+      if (q>0){
+        ctx.save(); ctx.globalAlpha = q*0.85;
+        ctx.strokeStyle = 'rgba(206,224,140,.95)'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(x, y, pt.size+2.5, pt.ph, pt.ph + 4.6*q); ctx.stroke();
+        ctx.restore();
+      }
+    }
+  });
+
+  // --- ④ 이동·성장하는 미생물, 새 매트 ---
+  if (si>=3){
+    if (si===3){
+      S.migrants.forEach(m => {
+        const q = ease((p - m.d)/0.55);
+        if (q<=0 || q>=1) return;
+        const seg=(m.path.length-1)*q, i=Math.min(m.path.length-2, Math.floor(seg)), f=seg-i;
+        const x=lerp(m.path[i][0], m.path[i+1][0], f), y=lerp(m.path[i][1], m.path[i+1][1], f);
+        ctx.fillStyle='#2e8b6e';
+        ctx.beginPath(); ctx.ellipse(x+wig*1.5, y, m.r, m.r*0.8, 0, 0, 6.283); ctx.fill();
+        ctx.globalAlpha=0.3; ctx.strokeStyle='#2e8b6e'; ctx.lineWidth=1;
+        ctx.beginPath(); ctx.moveTo(x, y+6); ctx.lineTo(x, y+14); ctx.stroke(); ctx.globalAlpha=1;
+      });
+    }
+    S.fils.forEach(fl => {
+      const q = si===3 ? ease((p - fl.d)/0.6) : 1;
+      if (q<=0) return;
+      ctx.save(); ctx.globalAlpha = 0.55;
+      ctx.strokeStyle = '#3d9070'; ctx.lineWidth = 1.5; ctx.beginPath();
+      const ye = lerp(fl.y0, fl.y1, q);
+      ctx.moveTo(fl.x, fl.y0);
+      ctx.quadraticCurveTo(fl.x + wig*2 + 3, (fl.y0+ye)/2, fl.x + wig*1.5, ye);
+      ctx.stroke(); ctx.restore();
+    });
+    S.newCells.forEach((c,i) => {
+      const a = si===3 ? ease((p-0.5-c.d*0.45)/0.35) : 1;
+      if (a<=0.01) return;
+      ctx.globalAlpha = a;
+      ctx.fillStyle = i%2 ? '#2e8b6e' : '#4f9a49';
+      ctx.beginPath(); ctx.ellipse(c.x, c.y + (RM?0:Math.sin(t*2+c.ph))*0.6, c.r, c.r*0.8, 0, 0, 6.283); ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+  }
+
+  // --- ⑤ 탄산염 결정 ---
+  if (si>=4){
+    S.crys.forEach(c => {
+      const q = si===4 ? ease((p - c.d)/0.25) : 1;
+      if (q<=0) return;
+      ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.rot); ctx.scale(q,q);
+      ctx.fillStyle = '#f6f1df'; ctx.strokeStyle = '#c8bb92'; ctx.lineWidth = 0.8;
+      ctx.beginPath(); ctx.moveTo(0,-c.s); ctx.lineTo(c.s*0.8,0); ctx.lineTo(0,c.s); ctx.lineTo(-c.s*0.8,0);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      if (si===4){                                  // 나타날 때 반짝임
+        const fl = 1 - clamp01((p - c.d)*5);
+        if (fl>0){ ctx.globalAlpha = fl; ctx.strokeStyle='#fffbe8'; ctx.lineWidth=1;
+          ctx.beginPath(); ctx.moveTo(-c.s*2,0); ctx.lineTo(c.s*2,0);
+          ctx.moveTo(0,-c.s*2); ctx.lineTo(0,c.s*2); ctx.stroke(); }
+      }
+      ctx.restore();
+    });
+  }
+
+  // --- ⑥ 완성된 얇은 층 강조 ---
+  if (si===5){
+    const a = ease(p) * (0.55 + (RM?0:0.15*Math.sin(t*2.5)));
+    ctx.save();
+    ctx.beginPath();
+    for (let x=0; x<=W; x+=8){ const y=S.newSurf(x)-5; x?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+    for (let x=W; x>=0; x-=8) ctx.lineTo(x, S.surf(x)-4);
+    ctx.closePath();
+    ctx.fillStyle = `rgba(233,182,74,${0.16*a})`; ctx.fill();
+    ctx.strokeStyle = `rgba(201,150,46,${0.8*a})`; ctx.lineWidth = 1.6;
+    [x=>S.newSurf(x)-5, x=>S.surf(x)-4].forEach(fn => {
+      ctx.beginPath();
+      for (let x=0; x<=W; x+=8){ const y=fn(x); x?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+      ctx.stroke();
+    });
     ctx.restore();
   }
 
-  // 퇴적물 입자
-  stepParticles(now, g);
+  // --- 단계별 표지(최대 3개) ---
+  const L = (txt,ax,ay,dx,dy,a)=>drawLabel(ctx,txt,ax,ay,ax+dx,ay+dy,a);
+  if (si===0){
+    L('미생물 매트(남세균 포함)', W*0.22, S.surf(W*0.22)-8, -30, -46, ease(p*2-0.4));
+    L('점액질(EPS)', W*0.62, S.surf(W*0.62)-8, 40, -60, ease(p*2-1));
+  } else if (si===1){
+    L('퇴적물 입자(진흙·모래)', W*0.4, H*0.3, 60, -40, ease(p*2.5-0.3));
+  } else if (si===2){
+    L('점액질이 입자를 붙잡음', W*0.3, S.surf(W*0.3)-14, -30, -52, ease(p*1.6-0.5));
+  } else if (si===3){
+    L('옛 표면', W*0.76, S.surf(W*0.76)-5, 34, -40, ease(p*2-0.5));
+    L('새 매트', W*0.3, S.newSurf(W*0.3)-4, -30, -46, ease(p*2-1.3));
+  } else if (si===4){
+    L('탄산염 결정', W*0.55, (S.surf(W*0.55)+S.newSurf(W*0.55))/2-4, 50, -55, ease(p*2-0.4));
+  } else if (si===5){
+    L('얇은 층 1개', W*0.18, (S.surf(W*0.18)+S.newSurf(W*0.18))/2-5, -20, -50, ease(p*1.6));
+  }
+}
+
+/* ---------- 전체 모습 안내창(오른쪽 위) ---------- */
+function drawInset(ctx, W, H){
+  const iw = Math.min(216, W*0.3), ih = iw*0.56, x0 = W-iw-12, y0 = 12;
   ctx.save();
-  particles.forEach(p => {
-    ctx.globalAlpha = Math.max(0, p.alpha);
-    ctx.fillStyle = p.washed ? '#b59a72' : '#8a6c44';
-    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill();
-  });
+  ctx.beginPath(); ctx.roundRect(x0,y0,iw,ih,10); ctx.clip();
+  const g = ctx.createLinearGradient(0,y0,0,y0+ih);
+  g.addColorStop(0,'#d6edf7'); g.addColorStop(1,'#8fc0da');
+  ctx.fillStyle=g; ctx.fillRect(x0,y0,iw,ih);
+  const bY = y0+ih*0.82;
+  ctx.fillStyle='#b19878'; ctx.fillRect(x0,bY,iw,ih);
+  // 완만한 스트로마톨라이트 돔
+  const cx = x0+iw*0.52, R = iw*0.26, hh = ih*0.34;
+  for (let i=3;i>=0;i--){
+    const f=(i+1)/4;
+    ctx.beginPath(); ctx.ellipse(cx,bY,R*f,hh*f,0,Math.PI,0);
+    ctx.closePath();
+    ctx.fillStyle = ['#8d7a64','#c9bda1','#9b7d57','#a9906c'][i]; ctx.fill();
+  }
+  ctx.strokeStyle='#2e8b6e'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.ellipse(cx,bY,R,hh,0,Math.PI*1.05,Math.PI*1.95); ctx.stroke();
+  // 확대 중인 부분 표시
+  const zr = { x:cx-R*0.5, y:bY-hh-4, w:R, h:hh*0.62 };
+  ctx.strokeStyle='#c9962e'; ctx.lineWidth=2;
+  ctx.strokeRect(zr.x, zr.y, zr.w, zr.h);
+  ctx.font='500 11px "IBM Plex Sans KR",sans-serif';
+  ctx.fillStyle='rgba(36,54,64,.85)'; ctx.fillText('전체 모습', x0+8, y0+16);
   ctx.restore();
+  // 확대 연결선(사각형 → 본 화면)
+  ctx.save(); ctx.strokeStyle='rgba(201,150,46,.6)'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(zr.x, zr.y); ctx.lineTo(x0-40, y0+4);
+  ctx.moveTo(zr.x, zr.y+zr.h); ctx.lineTo(x0-40, y0+ih+30); ctx.stroke();
+  ctx.font='500 11.5px "IBM Plex Sans KR",sans-serif'; ctx.fillStyle='rgba(36,54,64,.75)';
+  ctx.fillText('◀ 이 부분을 확대 중', x0-118, y0+ih+8);
+  ctx.restore();
+  ctx.strokeStyle='rgba(255,255,255,.8)'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.roundRect(x0,y0,iw,ih,10); ctx.stroke();
 }
 
-/* ---------- 메인 루프 ---------- */
-function loop(now){
-  if (phase !== 'IDLE') stepPhase(now);
-  draw(now);
-  requestAnimationFrame(loop);
+/* ============================================================
+   탭 1 — 오랜 시간 반복(전체 단면) 장면
+   ============================================================ */
+const MACRO_REPS = 12, MACRO_START = 2;
+function buildMacro(W, H){
+  const rnd = mulberry32(4242);
+  const cols = ['#9b7d57','#8d7a64','#d3c7ab','#93815f','#c9bda1','#7f7052'];
+  const M = { W, H, cx:W*0.52, baseY:H*0.84, R:Math.min(W*0.3, 280), reps:[] };
+  let prev = -1;
+  for (let i=0; i<MACRO_REPS; i++){
+    let ci; do { ci = Math.floor(rnd()*cols.length); } while (ci===prev);
+    prev = ci;
+    M.reps.push({ t:9+rnd()*8, w:0.16+rnd()*0.22, f1:2+rnd()*2.5, f2:5+rnd()*4,
+      a1:rnd()*6.28, a2:rnd()*6.28, col:cols[ci] });
+  }
+  const sumT = M.reps.reduce((a,r)=>a+r.t*1.2, 0);
+  M.k = Math.min(1, H*0.52/sumT);       // 화면에 맞는 배율
+  return M;
 }
-requestAnimationFrame(loop);
-updateHud(); updateCore();
+function macroThick(M, r, u){           // 층 하나의 두께(위치 u에 따라 자연스럽게 변함)
+  const env = Math.pow(Math.max(0, 1-u*u), 0.8);
+  const wob = 1 + r.w*(Math.sin(u*r.f1+r.a1)*0.6 + Math.sin(u*r.f2+r.a2)*0.4);
+  return Math.max(0, r.t * env * wob * M.k);
+}
+function drawMacro(ctx, M, visible, curP, t){
+  const {W,H,cx,baseY,R} = M;
+  drawWater(ctx, W, H);
+  ctx.fillStyle = '#b19878'; ctx.fillRect(0, baseY, W, H-baseY);
+  ctx.fillStyle = 'rgba(120,98,64,.5)';
+  [[0.14,7],[0.3,5],[0.8,8],[0.92,5]].forEach(([fx,r])=>{
+    ctx.beginPath(); ctx.ellipse(W*fx, baseY+8, r*1.5, r, 0, 0, 6.283); ctx.fill(); });
 
-/* ---------- 관찰 기록: 브라우저에 자동 저장 ---------- */
-const notes = $('notes');
-try { const saved = localStorage.getItem('stromatolite-notes'); if (saved) notes.value = saved; } catch(e){}
-notes.addEventListener('input', () => {
-  try { localStorage.setItem('stromatolite-notes', notes.value); } catch(e){}
+  const NX = 72, xs = [], cum = new Array(NX+1).fill(0);
+  for (let j=0;j<=NX;j++) xs.push(cx - R + (2*R)*(j/NX));
+  let topPts = xs.map(x=>baseY);
+  for (let i=0; i<visible; i++){
+    const r = M.reps[i], f = (i===visible-1 && curP<1) ? ease(curP) : 1;
+    const newTop = [];
+    ctx.beginPath();
+    for (let j=0;j<=NX;j++){
+      const u=(xs[j]-cx)/R;
+      cum[j] += macroThick(M, r, u)*f;
+      newTop[j] = baseY - cum[j];
+      j?ctx.lineTo(xs[j],newTop[j]):ctx.moveTo(xs[j],newTop[j]);
+    }
+    for (let j=NX;j>=0;j--) ctx.lineTo(xs[j], topPts[j]);
+    ctx.closePath(); ctx.fillStyle = r.col; ctx.fill();
+    ctx.strokeStyle='rgba(60,45,25,.12)'; ctx.lineWidth=1; ctx.stroke();
+    topPts = newTop;
+  }
+  // 살아 있는 미생물 매트: 가장 위 표면에만
+  ctx.strokeStyle = '#2e8b6e'; ctx.lineWidth = 3; ctx.lineCap='round';
+  ctx.beginPath();
+  for (let j=0;j<=NX;j++) j?ctx.lineTo(xs[j],topPts[j]-1):ctx.moveTo(xs[j],topPts[j]-1);
+  ctx.stroke();
+  // 잔잔히 내려오는 퇴적물 입자
+  if (!RM){
+    ctx.fillStyle='rgba(120,95,60,.4)';
+    for (let i=0;i<10;i++){
+      const x=(i*127+t*26)%W, y=(i*67+t*34)%(baseY*0.62);
+      ctx.beginPath(); ctx.arc(x,y,1.8,0,6.283); ctx.fill();
+    }
+  }
+  drawLabel(ctx,'살아 있는 미생물 매트(표면)', cx+R*0.55, topPts[Math.round(NX*0.78)]-2, cx+R*0.55+50, topPts[Math.round(NX*0.78)]-46, 1);
+}
+
+/* ============================================================
+   탭 1 — 진행 제어
+   ============================================================ */
+let mode = 'STEP';      // 'STEP' | 'REPEAT'
+let idx = 0;            // 현재 단계 번호
+let clock = 0;          // 현재 단계의 경과 시간(ms) — 일시정지 시 멈춤
+let amb = 0;            // 잔잔한 움직임용 시간(s)
+let playing = true;
+let finished = false;   // 현재 단계 애니메이션 종료 여부
+let scene = null, macro = null;
+const cv1 = $('cv1'), ctx1 = cv1.getContext('2d');
+
+const chipsEl = $('stepChips');
+STEPS.forEach((s,i) => {
+  const d = document.createElement('div');
+  d.className='stepChip'; d.innerHTML=`<b>${s.no}</b> ${s.name}`;
+  chipsEl.appendChild(d);
 });
+
+function stepDur(i){ return RM ? 1 : STEPS[i].dur; }
+
+function refreshUi(){
+  const chips = chipsEl.children;
+  for (let i=0;i<chips.length;i++)
+    chips[i].className = 'stepChip' + (mode==='REPEAT' ? ' done' : i<idx ? ' done' : i===idx ? ' cur' : '');
+  const info = mode==='REPEAT' ? REPEAT_INFO : STEPS[idx];
+  $('stepName').textContent = (mode==='REPEAT' ? '⟳ ' : info.no+' ') + info.name + ' — ';
+  $('stepCap').textContent = mode==='REPEAT' ? (finished ? info.capEnd : info.capRun) : info.cap;
+  $('whyBox').hidden = true; $('btnWhy').setAttribute('aria-expanded','false');
+  $('keyLine').hidden = !(mode==='REPEAT' && finished);
+  $('bPrev').disabled = (mode==='STEP' && idx===0);
+  $('bNext').style.display = mode==='REPEAT' ? 'none' : '';
+  $('bNext').textContent = idx===STEPS.length-1 ? '⟳ 오랜 시간 반복해 보기' : '다음 단계 ▶';
+  $('bPause').disabled = finished && mode==='STEP';
+  $('bPause').textContent = playing ? '⏸ 일시정지' : '▶ 계속 보기';
+  const chip = $('repChip');
+  if (mode==='STEP' && idx===STEPS.length-1){
+    chip.hidden=false; chip.textContent='반복 횟수 1회 · 형성된 얇은 층 1개';
+  } else if (mode!=='REPEAT') chip.hidden=true;
+}
+
+function enterStep(i){
+  mode='STEP'; idx=i; clock=0; playing=true; finished=RM;
+  refreshUi();
+}
+function enterRepeat(){
+  mode='REPEAT'; clock=0; playing=true; finished=false;
+  macro = buildMacro(cv1._w||800, cv1._h||460);
+  if (RM) clock = 1e9;
+  refreshUi();
+}
+
+const ZOOM_MS = 1800, REP_MS = 1100, END_HOLD = 400;
+
+function drawT1(){
+  if (!cv1._w) return;
+  const W = cv1._w, H = cv1._h;
+  // 확대 관찰: 논리 좌표(높이 300)를 화면 높이에 맞게 확대해 그림
+  const zs = Math.max(1, H/300), LW = W/zs, LH = 300;
+  if (!scene || Math.abs(scene.W-LW)>1 || scene.H!==LH) scene = buildScene(LW,LH);
+  if (mode==='STEP'){
+    const p = RM ? 1 : Math.min(1, clock/stepDur(idx));
+    if (p>=1 && !finished){ finished=true; refreshUi(); }
+    ctx1.save(); ctx1.scale(zs,zs);
+    drawMicro(ctx1, scene, idx, p, amb);
+    ctx1.restore();
+    drawInset(ctx1, W, H);
+  } else {
+    if (!macro || macro.W!==W || macro.H!==H){ const c=clock; macro=buildMacro(W,H); clock=c; }
+    const loopT = Math.max(0, clock - ZOOM_MS);
+    const kDone = Math.floor(loopT/REP_MS);
+    const visible = Math.min(MACRO_REPS, MACRO_START + kDone);
+    const curP = visible < MACRO_REPS ? (loopT%REP_MS)/REP_MS : 1;
+    if (visible>=MACRO_REPS && loopT > (MACRO_REPS-MACRO_START)*REP_MS + END_HOLD && !finished){
+      finished = true; refreshUi();
+    }
+    drawMacro(ctx1, macro, visible, curP, amb);
+    if (clock < ZOOM_MS){                    // 확대 화면에서 전체 단면으로 축소
+      const pz = ease(clock/ZOOM_MS);
+      if (pz < 0.55){
+        ctx1.save(); ctx1.globalAlpha = 1 - pz/0.55; ctx1.scale(zs,zs);
+        drawMicro(ctx1, scene, 5, 1, amb);
+        ctx1.restore();
+      }
+    }
+    $('repChip').hidden = false;
+    $('repChip').textContent = `반복 횟수 ${visible}회 · 형성된 얇은 층 ${visible}개`;
+  }
+}
+
+/* ---------- 탭 1 버튼 ---------- */
+$('bNext').addEventListener('click', () => {
+  if (mode!=='STEP') return;
+  if (idx===STEPS.length-1) enterRepeat();
+  else enterStep(idx+1);
+});
+$('bPrev').addEventListener('click', () => {
+  if (mode==='REPEAT') enterStep(STEPS.length-1);
+  else if (idx>0) enterStep(idx-1);
+});
+$('bReplay').addEventListener('click', () => {
+  if (mode==='REPEAT') enterRepeat(); else enterStep(idx);
+});
+$('bPause').addEventListener('click', () => {
+  playing = !playing; refreshUi();
+});
+$('bRestart').addEventListener('click', () => enterStep(0));
+$('btnWhy').addEventListener('click', () => {
+  const box = $('whyBox');
+  box.textContent = (mode==='REPEAT' ? REPEAT_INFO : STEPS[idx]).why;
+  box.hidden = !box.hidden;
+  $('btnWhy').setAttribute('aria-expanded', String(!box.hidden));
+});
+document.addEventListener('keydown', e => {
+  if (activeTab!=='t1' || e.target.tagName==='BUTTON' || e.target.tagName==='TEXTAREA') return;
+  if (e.key==='ArrowRight'){ $('bNext').click(); e.preventDefault(); }
+  else if (e.key==='ArrowLeft'){ $('bPrev').click(); e.preventDefault(); }
+  else if (e.key===' '){ $('bPause').click(); e.preventDefault(); }
+});
+
+/* ============================================================
+   탭 2 — 기준 조건 vs 바꾼 조건 비교
+   ============================================================ */
+const LEVELS = { sed:['적음','보통','많음'], flow:['약함','보통','강함'] };
+const VAR_NAME = { sed:'퇴적물 공급량', flow:'물의 흐름' };
+const SUPPLY = { '적음':0.45, '보통':1, '많음':2.1 };
+const FLOWP  = { '약함':{drift:0.25,sweep:0.05}, '보통':{drift:0.9,sweep:0.22}, '강함':{drift:2.4,sweep:0.6} };
+const BASE_PARAMS = { count:30, drift:0.9, sweep:0.22, patchy:false };
+const OBS_BASE = { caught:'보통', swept:'일부', mat:'잘 이루어짐', layer:'비교적 고르고 연속적' };
+const OBS = {
+  sed: { '적음':{caught:'적음', swept:'일부', mat:'빠르게 이루어짐', layer:'매우 얇아 잘 드러나지 않음'},
+         '보통': OBS_BASE,
+         '많음':{caught:'많음', swept:'적음', mat:'부분적으로 이루어짐(깊이 묻힘)', layer:'두껍고 불규칙함'} },
+  flow:{ '약함':{caught:'많음', swept:'거의 없음', mat:'잘 이루어짐', layer:'두껍고 연속적'},
+         '보통': OBS_BASE,
+         '강함':{caught:'적음', swept:'많음', mat:'부분적으로 이루어짐', layer:'얇고 불연속적'} },
+};
+function duoParams(v, lvl){
+  const p = { ...BASE_PARAMS };
+  if (v==='sed'){ p.count = Math.round(30*SUPPLY[lvl]); p.patchy = SUPPLY[lvl]>1.5; }
+  if (v==='flow'){ p.drift = FLOWP[lvl].drift; p.sweep = FLOWP[lvl].sweep; p.patchy = lvl==='강함'; }
+  return p;
+}
+
+const DUO_CYCLES = 3, D_FALL = 2.7, D_GROW = 1.6, D_CYC = D_FALL + D_GROW;
+let duoSel = null;            // {v, lvl}
+let duoPlaying = true;
+
+function makePanel(cv){ return { cv, ctx: cv.getContext('2d') }; }
+const panA = makePanel($('cvA')), panB = makePanel($('cvB'));
+
+function resetPanel(P, params, seed){
+  if (!fitCanvas(P.cv)) { P.ready=false; return; }
+  P.ready = true;
+  P.w = P.cv._w; P.h = P.cv._h;
+  P.rnd = mulberry32(seed);
+  P.params = params;
+  P.baseY = P.h*0.72;
+  P.nb = Math.ceil(P.w/14);
+  P.surf = Array.from({length:P.nb}, (_,i)=> 8+4*Math.sin(i/4));
+  P.grains = []; P.falling = []; P.snaps = [];
+  P.clock = 0; P.cycle = 0; P.spawned = 0; P.done = false;
+  P.gaps = Array.from({length:P.nb}, ()=> P.params.patchy && P.rnd()<0.45);
+}
+function surfAt(P, x){
+  const b = Math.max(0, Math.min(P.nb-1, Math.floor(x/14)));
+  return P.baseY - P.surf[b];
+}
+function updatePanel(P, dt){
+  if (!P.ready) return;
+  if (!P.done){
+    P.clock += dt;
+    const cyc = Math.floor(P.clock/D_CYC);
+    if (cyc >= DUO_CYCLES){ P.done = true; onDuoMaybeDone(); }
+    else {
+      if (cyc > P.cycle){                    // 새 사이클: 이전 표면을 흔적으로 저장
+        P.snaps.push([...P.surf]); P.cycle = cyc; P.spawned = 0;
+        P.gaps = Array.from({length:P.nb}, ()=> P.params.patchy && P.rnd()<0.45);
+      }
+      const lt = P.clock - cyc*D_CYC;
+      if (lt < D_FALL){                      // 입자 뿌리기
+        const want = Math.floor(P.params.count * lt/D_FALL);
+        while (P.spawned < want){
+          P.spawned++;
+          P.falling.push({ x: 15+P.rnd()*(P.w-30), y: -8-P.rnd()*P.h*0.25,
+            vy: 62+P.rnd()*40, s: 3+P.rnd()*3.5, ph: P.rnd()*6.28,
+            willSweep: P.rnd() < P.params.sweep, sw:false, a:1, hue:P.rnd() });
+        }
+      }
+      const k = Math.min(1, dt*3)*0.5;       // 표면을 완만하게 다듬기
+      for (let b=1; b<P.nb-1; b++)
+        P.surf[b] += ((P.surf[b-1]+P.surf[b+1])/2 - P.surf[b])*k;
+    }
+  }
+  // 남은 입자는 관찰 완료 후에도 끝까지 내려앉음
+  for (let i=P.falling.length-1; i>=0; i--){
+    const f = P.falling[i];
+    if (f.sw){                                // 물살에 쓸려 지나감
+      f.x += (70 + P.params.drift*150)*dt; f.a -= dt*1.1;
+      if (f.a<=0 || f.x>P.w+15) P.falling.splice(i,1);
+      continue;
+    }
+    f.y += f.vy*dt;
+    f.x += (Math.sin(P.clock*2+f.ph)*10 + P.params.drift*42)*dt;
+    if (f.x > P.w+15){ P.falling.splice(i,1); continue; }
+    const top = surfAt(P, f.x);
+    if (f.y >= top - f.s*0.4){
+      if (f.willSweep){ f.sw = true; f.y = top - f.s; }
+      else {                                  // 점액질에 붙잡혀 고정
+        const b = Math.max(0, Math.min(P.nb-1, Math.floor(f.x/14)));
+        if (P.surf[b] < P.h*0.5){
+          P.surf[b] += f.s*1.6;
+          if (b>0)      P.surf[b-1] += f.s*0.55;
+          if (b<P.nb-1) P.surf[b+1] += f.s*0.55;
+        }
+        P.grains.push({ x:f.x, y:P.baseY-P.surf[b]+f.s*0.3, s:f.s, hue:f.hue });
+        if (P.grains.length > 260) P.grains.shift();
+        P.falling.splice(i,1);
+      }
+    }
+  }
+}
+function drawPanel(P){
+  if (!P.ready) return;
+  const {ctx, w, h} = P;
+  drawWater(ctx, w, h);
+  ctx.fillStyle = '#b19878'; ctx.fillRect(0, P.baseY+6, w, h);
+  // 쌓인 퇴적물(고운 기질)
+  ctx.beginPath(); ctx.moveTo(0, P.baseY+6);
+  for (let b=0;b<P.nb;b++) ctx.lineTo(b*14+7, P.baseY-P.surf[b]);
+  ctx.lineTo(w, P.baseY+6); ctx.closePath();
+  ctx.fillStyle = '#a07c52'; ctx.fill();
+  // 굵은 입자
+  P.grains.forEach(g => {
+    ctx.fillStyle = `rgb(${138+g.hue*40|0},${102+g.hue*30|0},${68+g.hue*22|0})`;
+    ctx.beginPath(); ctx.arc(g.x, g.y, g.s*0.9, 0, 6.283); ctx.fill();
+  });
+  // 과거 매트의 흔적(묻힌 옛 표면)
+  ctx.strokeStyle = 'rgba(70,72,50,.4)'; ctx.lineWidth = 1.5;
+  P.snaps.forEach(sn => {
+    ctx.beginPath();
+    for (let b=0;b<P.nb;b++){ const y=P.baseY-sn[b]; b?ctx.lineTo(b*14+7,y):ctx.moveTo(b*14+7,y); }
+    ctx.stroke();
+  });
+  // 살아 있는 매트: 현재 표면(불리한 조건에서는 불연속)
+  ctx.strokeStyle = '#2e8b6e'; ctx.lineWidth = 3; ctx.lineCap='round';
+  for (let b=0;b<P.nb-1;b++){
+    if (P.gaps[b]) continue;
+    ctx.beginPath();
+    ctx.moveTo(b*14+7, P.baseY-P.surf[b]-2);
+    ctx.lineTo(b*14+21, P.baseY-P.surf[b+1]-2);
+    ctx.stroke();
+  }
+  // 떨어지는/쓸려가는 입자
+  P.falling.forEach(f => {
+    ctx.globalAlpha = Math.max(0, f.a);
+    ctx.fillStyle = f.sw ? '#c0a67e' : '#8a6c44';
+    ctx.beginPath(); ctx.arc(f.x, f.y, f.s*0.7, 0, 6.283); ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+  // 진행 표시
+  ctx.font='600 12px "IBM Plex Sans KR",sans-serif';
+  ctx.fillStyle='rgba(255,255,255,.92)';
+  ctx.beginPath(); ctx.roundRect(8,8,86,22,11); ctx.fill();
+  ctx.fillStyle='#0e4b5e';
+  ctx.fillText(P.done ? '관찰 완료' : `사이클 ${Math.min(DUO_CYCLES,P.cycle+1)} / ${DUO_CYCLES}`, 17, 23);
+}
+function fillObs(ul, o, note){
+  ul.innerHTML = '';
+  const rows = [['붙잡힌 퇴적물',o.caught],['쓸려간 퇴적물',o.swept],['새 표면 형성',o.mat],['층의 모습',o.layer]];
+  rows.forEach(([k,v]) => {
+    const li = document.createElement('li'); li.innerHTML = `<b>${k}</b>${v}`; ul.appendChild(li);
+  });
+  if (note){ const li=document.createElement('li'); li.style.gridColumn='1/-1'; li.textContent=note; ul.appendChild(li); }
+}
+function onDuoMaybeDone(){
+  if (!(panA.done && panB.done) || !duoSel) return;
+  fillObs($('obsA'), OBS_BASE);
+  const same = (duoSel.lvl==='보통');
+  fillObs($('obsB'), OBS[duoSel.v][duoSel.lvl], same ? '※ 기준 조건과 같은 수준입니다. 다른 수준을 골라 비교해 보세요.' : '');
+}
+function startDuo(){
+  if (!duoSel) return;
+  $('duoHint').hidden = true;
+  $('obsA').innerHTML = ''; $('obsB').innerHTML = '';
+  $('capB').innerHTML = `바꾼 조건 <small>· ${VAR_NAME[duoSel.v]} ${duoSel.lvl}</small>`;
+  resetPanel(panA, BASE_PARAMS, 909);
+  resetPanel(panB, duoParams(duoSel.v, duoSel.lvl), 909);
+  duoPlaying = true; $('dPause').textContent = '⏸ 일시정지';
+  if (RM){                                   // 동작 줄이기: 결과 상태를 바로 표시
+    while (!(panA.done && panB.done)){ updatePanel(panA, 0.05); updatePanel(panB, 0.05); }
+  }
+}
+$('varSeg').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const v = b.dataset.v;
+  $('varSeg').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed', x===b));
+  const seg = $('lvlSeg'); seg.hidden = false; seg.innerHTML = '';
+  LEVELS[v].forEach(lvl => {
+    const btn = document.createElement('button'); btn.type='button'; btn.textContent = lvl;
+    btn.addEventListener('click', () => {
+      seg.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed', x===btn));
+      duoSel = { v, lvl }; startDuo();
+    });
+    seg.appendChild(btn);
+  });
+  const def = v==='sed' ? '많음' : '강함';   // 기본으로 차이가 잘 보이는 수준 선택
+  [...seg.children].find(x=>x.textContent===def).click();
+});
+$('dReplay').addEventListener('click', startDuo);
+$('dPause').addEventListener('click', () => {
+  if (!duoSel) return;
+  duoPlaying = !duoPlaying;
+  $('dPause').textContent = duoPlaying ? '⏸ 일시정지' : '▶ 계속 보기';
+});
+
+/* ============================================================
+   탭 전환 + 메인 루프
+   ============================================================ */
+let activeTab = 't1';
+function showTab(id){
+  activeTab = id;
+  $('t1').hidden = id!=='t1'; $('t2').hidden = id!=='t2';
+  $('tabBtn1').setAttribute('aria-selected', id==='t1');
+  $('tabBtn2').setAttribute('aria-selected', id==='t2');
+  requestAnimationFrame(() => {              // 표시된 뒤 캔버스 크기 재계산
+    if (id==='t1') fitCanvas(cv1);
+    else if (duoSel){ /* 크기만 다시 맞추고 진행 상태는 유지 */
+      const ka=panA.clock, kb=panB.clock;
+      if (panA.ready===undefined || !panA.ready) startDuo();
+      else { fitCanvas(panA.cv); fitCanvas(panB.cv); panA.w=panA.cv._w; panA.h=panA.cv._h; panB.w=panB.cv._w; panB.h=panB.cv._h; }
+      void ka; void kb;
+    }
+  });
+}
+$('tabBtn1').addEventListener('click', ()=>showTab('t1'));
+$('tabBtn2').addEventListener('click', ()=>showTab('t2'));
+
+new ResizeObserver(()=>{ if (activeTab==='t1') fitCanvas(cv1); }).observe(cv1.parentElement);
+fitCanvas(cv1);
+
+let last = performance.now();
+function frame(now){
+  const dt = Math.min(0.05, (now-last)/1000); last = now;
+  if (activeTab==='t1'){
+    if (playing){ clock += dt*1000; amb += dt; }
+    drawT1();
+  } else {
+    if (duoPlaying && duoSel){ updatePanel(panA, dt); updatePanel(panB, dt); }
+    drawPanel(panA); drawPanel(panB);
+  }
+  requestAnimationFrame(frame);
+}
+enterStep(0);
+requestAnimationFrame(frame);
 </script>
 </body>
 </html>
