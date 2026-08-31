@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>스트로마톨라이트 형성 시뮬레이터</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@600;700&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
+<style>
+/* ============================================================
+   스트로마톨라이트 형성 시뮬레이터 — 고등학교 통합과학 수업용
+   교실 프로젝터(밝은 화면)에 맞춘 단일 밝은 테마.
+   색·크기 등 수업용 조정값은 아래 :root 변수와,
+   스크립트 상단의 OPT / BASE 객체에서 수정할 수 있습니다.
+   ============================================================ */
+:root{
+  --paper:#f2f6f4;        /* 페이지 바탕 */
+  --card:#ffffff;         /* 패널 카드 */
+  --line:#dbe5e0;         /* 경계선 */
+  --ink:#243640;          /* 본문 글자 */
+  --ink-soft:#5a6e78;     /* 보조 글자 */
+  --accent:#186a83;       /* 버튼·강조(딥틸) */
+  --accent-ink:#0e4b5e;
+  --sea:#2f7fae;          /* 바닷물 */
+  --mat:#55842f;          /* 미생물층 */
+  --mat-bright:#79a845;
+  --sedi:#a07c52;         /* 퇴적층 */
+  --sedi-deep:#7c5f3e;
+  --carb:#efe6cd;         /* 탄산칼슘 침전층 */
+  --good:#2e7d43; --ok:#2f6fae; --warn:#a8760f; --bad:#b3453a;
+  --radius:12px;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--paper); color:var(--ink);
+  font:400 15px/1.6 "IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+}
+.wrap{max-width:1460px; margin:0 auto; padding:16px 22px 28px}
+
+/* ---------- 상단 제목 영역 ---------- */
+header.top{display:flex; justify-content:space-between; align-items:flex-end; gap:20px; flex-wrap:wrap;
+  padding-bottom:14px; border-bottom:2px solid var(--line)}
+.eyebrow{font-size:12px; font-weight:700; letter-spacing:.14em; color:var(--accent); text-transform:uppercase}
+h1{font-family:"Hahmlet",serif; font-weight:700; font-size:30px; line-height:1.25; margin:2px 0 4px; text-wrap:balance}
+.sub{margin:0; color:var(--ink-soft); font-size:14px; max-width:62ch}
+.stats{display:flex; gap:10px}
+.stat{background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+  padding:8px 16px; text-align:center; min-width:96px}
+.stat .num{display:block; font-size:24px; font-weight:700; color:var(--accent-ink);
+  font-variant-numeric:tabular-nums; line-height:1.2}
+.stat .lab{display:block; font-size:12px; color:var(--ink-soft)}
+.badge{display:inline-block; font-size:14px; font-weight:700; padding:3px 10px; border-radius:99px;
+  background:#e8efec; color:var(--ink-soft); margin-bottom:2px}
+.badge.good{background:#e2f1e5; color:var(--good)}
+.badge.ok{background:#e3edf7; color:var(--ok)}
+.badge.warn{background:#f7eeda; color:var(--warn)}
+.badge.bad{background:#f7e3e0; color:var(--bad)}
+
+/* ---------- 3단 그리드 ---------- */
+main.grid{display:grid; grid-template-columns:252px minmax(0,1fr) 302px; gap:14px; margin-top:14px}
+@media (max-width:1080px){ main.grid{grid-template-columns:1fr} }
+.panel{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:16px}
+.panel h2{font-size:13px; font-weight:700; letter-spacing:.08em; color:var(--accent-ink);
+  margin:0 0 10px; padding-bottom:6px; border-bottom:1px solid var(--line)}
+
+/* ---------- 왼쪽: 조작 패널 ---------- */
+.ctl{margin-bottom:14px}
+.ctl .name{font-weight:700; font-size:14px}
+.ctl .desc{font-size:12px; color:var(--ink-soft); margin:1px 0 6px; line-height:1.45}
+.seg{display:flex; gap:3px; background:#e8efec; border-radius:9px; padding:3px}
+.seg button{flex:1; border:0; background:transparent; border-radius:7px; padding:7px 2px;
+  font:inherit; font-size:13px; font-weight:500; color:var(--ink-soft); cursor:pointer}
+.seg button:hover{background:#dde8e3}
+.seg button[aria-pressed="true"]{background:var(--accent); color:#fff; font-weight:700}
+.seg button:focus-visible{outline:2px solid var(--accent-ink); outline-offset:1px}
+.btns{display:flex; flex-direction:column; gap:8px; margin-top:16px}
+.btn{border:0; border-radius:9px; padding:12px 10px; font:inherit; font-size:15px; font-weight:700;
+  cursor:pointer; transition:transform .06s ease}
+.btn:active{transform:translateY(1px)}
+.btn:focus-visible{outline:2px solid var(--accent-ink); outline-offset:2px}
+.btn.primary{background:var(--accent); color:#fff}
+.btn.primary:hover{background:var(--accent-ink)}
+.btn.secondary{background:#e8efec; color:var(--accent-ink)}
+.btn.secondary:hover{background:#dde8e3}
+.btn.ghost{background:transparent; color:var(--ink-soft); border:1px solid var(--line)}
+.btn.ghost:hover{background:#f4f7f5}
+.btn:disabled{opacity:.45; cursor:not-allowed}
+.hint{font-size:12px; color:var(--ink-soft); margin-top:12px; line-height:1.5}
+
+/* ---------- 가운데: 시뮬레이션 무대 ---------- */
+.stage{display:flex; flex-direction:column; gap:10px; min-width:0}
+.phasebar{display:flex; gap:6px}
+.phase{flex:1; background:var(--card); border:1px solid var(--line); border-radius:9px;
+  padding:6px 8px; font-size:12px; color:var(--ink-soft); line-height:1.35; transition:all .25s ease}
+.phase b{display:block; font-size:12px; color:inherit}
+.phase.on{background:var(--accent); border-color:var(--accent); color:#fff}
+.seaWrap{position:relative; flex:1; min-height:430px; border-radius:var(--radius);
+  overflow:hidden; border:1px solid var(--line); background:#bfe0ef}
+#sea{position:absolute; inset:0; width:100%; height:100%; display:block}
+#stageMsg{position:absolute; left:50%; top:12px; transform:translateX(-50%);
+  background:rgba(20,45,60,.78); color:#fff; font-size:14px; font-weight:500;
+  padding:7px 16px; border-radius:99px; white-space:nowrap; max-width:92%;
+  overflow:hidden; text-overflow:ellipsis; transition:opacity .3s}
+.legend{display:flex; gap:16px; justify-content:center; font-size:12.5px; color:var(--ink-soft)}
+.legend .sw{display:inline-block; width:14px; height:14px; border-radius:4px; vertical-align:-2px;
+  margin-right:5px; border:1px solid rgba(0,0,0,.15)}
+
+/* ---------- 오른쪽: 설명·피드백 패널 ---------- */
+.feedback{display:flex; flex-direction:column; gap:0; min-width:0}
+#events{list-style:none; margin:0 0 4px; padding:0; font-size:13.5px}
+#events li{padding:5px 0 5px 20px; position:relative; line-height:1.5; border-bottom:1px dashed var(--line)}
+#events li:last-child{border-bottom:0}
+#events li::before{content:""; position:absolute; left:2px; top:12px; width:8px; height:8px; border-radius:50%; background:var(--accent)}
+#events li.warnItem::before{background:var(--warn)}
+#events li.badItem::before{background:var(--bad)}
+#why{font-size:13.5px; color:var(--ink); background:#f4f8f6; border-left:3px solid var(--accent);
+  border-radius:0 8px 8px 0; padding:9px 12px; margin:0 0 14px; line-height:1.55}
+.coreWrap{display:flex; gap:12px; align-items:stretch}
+#core{flex:0 0 56px; display:flex; flex-direction:column-reverse; justify-content:flex-start;
+  min-height:150px; max-height:240px; overflow:hidden;
+  background:#f0f3f1; border:1px solid var(--line); border-radius:8px; padding:4px}
+#core .lyr{width:100%; border-radius:2px; margin-top:1px; flex-shrink:0}
+.coreNote{font-size:12px; color:var(--ink-soft); line-height:1.55; align-self:center}
+
+/* ---------- 하단: 핵심 개념 + 탐구 활동 ---------- */
+.bottom{display:grid; grid-template-columns:1.05fr 1.6fr; gap:14px; margin-top:14px}
+@media (max-width:1080px){ .bottom{grid-template-columns:1fr} }
+.keybox{background:#fdf6e3; border:2px solid #e4c968; border-radius:var(--radius); padding:18px 20px}
+.keybox .k{font-family:"Hahmlet",serif; font-weight:700; font-size:17px; color:#8a6d1c; margin-bottom:6px}
+.keybox p{margin:0; font-size:15px; line-height:1.65}
+.keybox strong{color:var(--accent-ink)}
+.keybox .fine{margin-top:10px; font-size:12px; color:var(--ink-soft)}
+.inquiry{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:16px 18px}
+.inquiry h2{font-size:13px; font-weight:700; letter-spacing:.08em; color:var(--accent-ink);
+  margin:0 0 10px; padding-bottom:6px; border-bottom:1px solid var(--line)}
+.qs{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:12px}
+@media (max-width:900px){ .qs{grid-template-columns:1fr} }
+.q{background:#f4f8f6; border-radius:9px; padding:10px 12px; font-size:13px; line-height:1.5}
+.q b{display:block; color:var(--accent-ink); font-size:12px; margin-bottom:3px}
+#notes{width:100%; min-height:64px; resize:vertical; border:1px solid var(--line); border-radius:9px;
+  padding:10px 12px; font:inherit; font-size:13.5px; background:#fbfdfc; color:var(--ink)}
+#notes:focus-visible{outline:2px solid var(--accent); outline-offset:0}
+.noteLab{font-size:13px; font-weight:700; margin-bottom:5px}
+.savedTip{font-size:11.5px; color:var(--ink-soft); margin-top:4px}
+
+@media (prefers-reduced-motion:reduce){
+  *{transition:none !important}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ===== 상단 제목 영역 ===== -->
+  <header class="top">
+    <div>
+      <span class="eyebrow">고등학교 통합과학 · 지구의 역사</span>
+      <h1>스트로마톨라이트 만들기</h1>
+      <p class="sub">미생물 매트 → 퇴적물 부착 → 위로 다시 성장 → 광물 침전. 조건을 직접 조절하며
+        층상 구조가 어떻게 반복되어 만들어지는지 관찰해 보세요.</p>
+    </div>
+    <div class="stats">
+      <div class="stat"><span class="num" id="statCycle">0</span><span class="lab">현재 사이클</span></div>
+      <div class="stat"><span class="num" id="statLayers">0</span><span class="lab">형성된 층</span></div>
+      <div class="stat"><span class="badge" id="statQuality">아직 없음</span><span class="lab">형성 상태</span></div>
+    </div>
+  </header>
+
+  <main class="grid">
+
+    <!-- ===== 왼쪽: 조작 패널 ===== -->
+    <aside class="panel controls">
+      <h2>환경 조건 조절</h2>
+
+      <div class="ctl">
+        <div class="name">☀️ 햇빛</div>
+        <p class="desc">햇빛이 충분할수록 남세균(미생물층)이 잘 성장합니다.</p>
+        <div class="seg" role="group" aria-label="햇빛" data-group="sun">
+          <button type="button" data-value="약함">약함</button>
+          <button type="button" data-value="보통" aria-pressed="true">보통</button>
+          <button type="button" data-value="강함">강함</button>
+        </div>
+      </div>
+
+      <div class="ctl">
+        <div class="name">🟤 퇴적물 공급</div>
+        <p class="desc">적절한 양의 진흙·모래가 공급되어야 층이 잘 형성됩니다.</p>
+        <div class="seg" role="group" aria-label="퇴적물 공급" data-group="sed">
+          <button type="button" data-value="적음">적음</button>
+          <button type="button" data-value="보통" aria-pressed="true">보통</button>
+          <button type="button" data-value="많음">많음</button>
+        </div>
+      </div>
+
+      <div class="ctl">
+        <div class="name">🌊 물의 흐름</div>
+        <p class="desc">흐름이 너무 강하면 퇴적물이 쓸려가거나 미생물층이 불안정해집니다.</p>
+        <div class="seg" role="group" aria-label="물의 흐름" data-group="flow">
+          <button type="button" data-value="약함">약함</button>
+          <button type="button" data-value="보통" aria-pressed="true">보통</button>
+          <button type="button" data-value="강함">강함</button>
+        </div>
+      </div>
+
+      <div class="ctl">
+        <div class="name">⚪ 탄산칼슘 침전</div>
+        <p class="desc">광물 침전이 있으면 층이 더 뚜렷하게 보존됩니다.</p>
+        <div class="seg" role="group" aria-label="탄산칼슘 침전" data-group="ca">
+          <button type="button" data-value="낮음">낮음</button>
+          <button type="button" data-value="높음" aria-pressed="true">높음</button>
+        </div>
+      </div>
+
+      <div class="btns">
+        <button type="button" class="btn primary" id="btnOnce">▶ 한 사이클 진행</button>
+        <button type="button" class="btn secondary" id="btnAuto">⏩ 5회 자동 진행</button>
+        <button type="button" class="btn ghost" id="btnReset">↺ 초기화</button>
+      </div>
+
+      <p class="hint">조건을 바꾸어 가며 어떤 경우에 층상 구조가 잘 형성되는지 탐구해 보세요.</p>
+    </aside>
+
+    <!-- ===== 가운데: 시뮬레이션 영역 ===== -->
+    <section class="stage">
+      <div class="phasebar" id="phasebar">
+        <div class="phase" data-ph="FALL"><b>① 퇴적물 공급</b>진흙·모래가 가라앉음</div>
+        <div class="phase" data-ph="STICK"><b>② 점액질 부착</b>끈끈한 점액질이 붙잡음</div>
+        <div class="phase" data-ph="GROW"><b>③ 위로 다시 성장</b>광합성을 위해 위로</div>
+        <div class="phase" data-ph="MINERAL"><b>④ 광물 침전</b>탄산칼슘이 층을 굳힘</div>
+      </div>
+      <div class="seaWrap">
+        <canvas id="sea"></canvas>
+        <div id="stageMsg">조건을 고르고 ‘한 사이클 진행’을 눌러 보세요</div>
+      </div>
+      <div class="legend">
+        <span><span class="sw" style="background:#6b9a3c"></span>미생물층 (남세균 매트)</span>
+        <span><span class="sw" style="background:#a07c52"></span>퇴적층 (진흙·모래)</span>
+        <span><span class="sw" style="background:#efe6cd"></span>탄산칼슘 침전층</span>
+      </div>
+    </section>
+
+    <!-- ===== 오른쪽: 설명·피드백 패널 ===== -->
+    <aside class="panel feedback">
+      <h2>이번 사이클에서 일어난 일</h2>
+      <ul id="events">
+        <li>아직 진행된 사이클이 없습니다. 왼쪽에서 조건을 고르고 시작해 보세요.</li>
+      </ul>
+
+      <h2>왜 이런 결과가 나왔을까?</h2>
+      <p id="why">스트로마톨라이트는 미생물이 살아 움직이며 만드는 구조입니다.
+        퇴적물에 덮여도 미생물층이 빛을 향해 <b>위로 다시 자라기</b> 때문에 층이 반복됩니다.</p>
+
+      <h2>층 기록 (시추 코어처럼 보기)</h2>
+      <div class="coreWrap">
+        <div id="core" aria-label="누적된 층의 순서"></div>
+        <p class="coreNote">아래가 오래된 층, 위가 새로운 층입니다.<br>
+          실제 지질학자도 이런 <b>단면의 층 순서</b>를 읽어 과거 환경을 알아냅니다.</p>
+      </div>
+    </aside>
+  </main>
+
+  <!-- ===== 하단: 핵심 개념 + 탐구 활동 ===== -->
+  <section class="bottom">
+    <div class="keybox">
+      <div class="k">💡 핵심 개념</div>
+      <p>스트로마톨라이트는 남세균이 <strong>죽어서 쌓이는 것이 아니라</strong>,
+        퇴적물이 쌓일 때마다 미생물층이 <strong>위로 다시 성장</strong>하면서
+        층이 반복되어 만들어집니다.</p>
+      <p class="fine">※ 실제 스트로마톨라이트의 모양과 크기는 수온·염도·영양염·물의 흐름 등
+        환경 조건에 따라 다양합니다.</p>
+    </div>
+    <div class="inquiry">
+      <h2>탐구 활동</h2>
+      <div class="qs">
+        <div class="q"><b>탐구 질문 1</b>어떤 조건에서 층상 구조가 가장 뚜렷하게 만들어질까?</div>
+        <div class="q"><b>탐구 질문 2</b>퇴적물이 너무 많으면 어떤 문제가 생길까?</div>
+        <div class="q"><b>탐구 질문 3</b>탄산칼슘 침전이 있을 때와 없을 때를 비교해 보자.</div>
+      </div>
+      <div class="noteLab">📝 관찰 결과 기록</div>
+      <textarea id="notes" placeholder="예) 물의 흐름을 ‘강함’으로 하니 퇴적물이 쓸려 나가서 층이 얇아졌다…"></textarea>
+      <p class="savedTip">입력한 내용은 이 컴퓨터의 브라우저에 자동 저장됩니다.</p>
+    </div>
+  </section>
+</div>
+
+<script>
+/* ============================================================
+   시뮬레이션 규칙 (교사 수정 지점)
+   - OPT: 각 조건 선택지가 계산에 미치는 배율
+   - BASE: 층 한 겹의 기본 두께(내부 단위)
+   ============================================================ */
+const OPT = {
+  sun : { '약함':0.55, '보통':1.00, '강함':1.35 },   // 미생물 성장 배율
+  sed : { '적음':0.50, '보통':1.00, '많음':1.70 },   // 퇴적물 공급량 배율
+  flow: { '약함':1.00, '보통':0.85, '강함':0.55 },   // 퇴적물이 남는 비율
+  ca  : { '낮음':0.35, '높음':1.00 },                // 탄산칼슘 침전 배율
+};
+const BASE = { sed:13, microbe:10, mineral:6, initMat:8 };  // 층 기본 두께
+const COLORS = {
+  microbe:'#6b9a3c', microbeEdge:'#4e7a28',
+  sed:'#a07c52',     sedEdge:'#82633f',
+  mineral:'#efe6cd', mineralEdge:'#d3c49b',
+};
+
+/* ---------- 상태 ---------- */
+const sel = { sun:'보통', sed:'보통', flow:'보통', ca:'높음' };  // 현재 선택된 조건
+let layers = [];          // 누적된 층 [{type:'microbe'|'sed'|'mineral', t:두께, prog:0~1}]
+let cycle = 0;            // 진행된 사이클 수
+let scores = [];          // 사이클별 형성 점수(종합 판정용)
+let phase = 'IDLE';       // 현재 애니메이션 단계
+let phaseT0 = 0;          // 단계 시작 시각
+let particles = [];       // 떨어지는 퇴적물 입자
+let autoLeft = 0;         // 자동 진행 남은 횟수
+let autoTimer = 0;        // 자동 진행 예약 타이머
+let cycleCalc = null;     // 이번 사이클 계산 결과
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const DUR = reduceMotion
+  ? { FALL:200, STICK:150, GROW:200, MINERAL:150, SETTLE:100 }
+  : { FALL:1700, STICK:900, GROW:1200, MINERAL:900, SETTLE:450 };
+
+/* ---------- 요소 ---------- */
+const canvas = document.getElementById('sea');
+const ctx = canvas.getContext('2d');
+const $ = id => document.getElementById(id);
+
+/* ---------- 초기 상태: 바닥의 얇은 미생물 매트 ---------- */
+function initLayers(){ layers = [{type:'microbe', t:BASE.initMat, prog:1}]; }
+initLayers();
+
+/* ---------- 조건 선택 버튼 ---------- */
+document.querySelectorAll('.seg').forEach(seg => {
+  seg.addEventListener('click', e => {
+    const btn = e.target.closest('button'); if(!btn) return;
+    seg.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b===btn));
+    sel[seg.dataset.group] = btn.dataset.value;
+  });
+});
+
+/* ============================================================
+   사이클 계산: 선택된 조건 → 이번 사이클의 층 두께와 피드백
+   ============================================================ */
+function computeCycle(){
+  const keep = OPT.flow[sel.flow];                       // 흐름에 따라 남는 비율
+  const sedT = BASE.sed * OPT.sed[sel.sed] * keep;       // 퇴적층 두께
+  const buried = sel.sed === '많음';                     // 깊이 묻힘 여부
+  const unstable = sel.flow === '강함';                  // 불안정 여부
+  let growT = BASE.microbe * OPT.sun[sel.sun];           // 미생물층 두께
+  if (buried)   growT *= 0.6;                            // 깊게 묻히면 성장 불리
+  if (unstable) growT *= 0.8;                            // 강한 흐름이면 매트 불안정
+  const minT = BASE.mineral * OPT.ca[sel.ca];            // 광물층 두께
+
+  // 형성 점수(0~100): 조건 조합으로 이번 사이클의 형성 정도를 평가
+  let s = 100;
+  if (sel.sun  === '약함') s -= 30;
+  if (sel.sed  === '적음') s -= 15;
+  if (sel.sed  === '많음') s -= 20;
+  if (sel.flow === '보통') s -= 5;
+  if (sel.flow === '강함') s -= 25;
+  s += (sel.ca === '높음') ? 8 : -8;
+  s = Math.max(0, Math.min(100, s));
+
+  // 피드백 문장 만들기
+  const events = [];
+  if (sel.sed === '보통')
+    events.push({t:'적절한 양의 퇴적물이 공급되어 미생물 매트 위에 새로운 퇴적층이 형성되었습니다.'});
+  else if (sel.sed === '적음')
+    events.push({t:'퇴적물 공급이 적어 이번 퇴적층은 얇게 형성되었습니다.', w:'warn'});
+  else
+    events.push({t:'퇴적물이 한꺼번에 많이 쌓여 미생물층이 깊이 묻혔습니다. 빛을 받아 다시 자라기 불리한 조건입니다.', w:'warn'});
+  if (sel.flow === '강함')
+    events.push({t:'물의 흐름이 너무 강하여 퇴적물의 일부가 쓸려 나갔고 층이 불안정해졌습니다.', w:'bad'});
+  events.push({t:'끈끈한 점액질이 가라앉은 진흙·모래를 매트 표면에 붙잡았습니다.'});
+  if (sel.sun === '약함')
+    events.push({t:'햇빛이 부족하여 미생물층이 퇴적물 위로 충분히 성장하지 못했습니다.', w:'bad'});
+  else if (sel.sun === '강함')
+    events.push({t:'햇빛이 강하여 미생물층이 퇴적물 위로 활발하게 다시 성장했습니다.'});
+  else
+    events.push({t:'햇빛이 충분하여 미생물층이 퇴적물 위로 다시 성장했습니다.'});
+  if (sel.ca === '높음')
+    events.push({t:'탄산칼슘 침전이 활발하여 층 구조가 더 뚜렷하게 보존됩니다.'});
+  else
+    events.push({t:'광물 침전이 적어 층의 경계가 상대적으로 흐릿하게 남습니다.', w:'warn'});
+
+  // "왜?" 설명: 핵심 원리 + 조건별 해설
+  let why = '퇴적물에 덮인 미생물이 광합성을 하려면 빛이 필요하므로, 미생물층은 퇴적층을 뚫고 위로 다시 자랍니다. 이 반복이 줄무늬(층상 구조)를 만듭니다. ';
+  if (s >= 85)      why += '지금은 햇빛·퇴적물·물의 흐름이 모두 알맞아 층이 규칙적으로 잘 쌓이는 조건입니다.';
+  else if (sel.sun === '약함') why += '다만 지금은 빛이 부족해 미생물층이 얇아서, 층의 반복이 뚜렷하게 이어지기 어렵습니다.';
+  else if (sel.flow === '강함') why += '다만 지금은 물살이 세서 퇴적물이 자리 잡기 전에 쓸려 나가, 층이 고르게 만들어지기 어렵습니다.';
+  else if (sel.sed === '많음') why += '다만 지금은 퇴적물이 너무 많아 미생물이 깊이 묻히면서, 위로 다시 자라는 데 시간이 오래 걸립니다.';
+  else if (sel.sed === '적음') why += '다만 지금은 퇴적물이 적어 층이 얇게만 만들어져 구조가 잘 드러나지 않습니다.';
+  else why += '조건이 대체로 무난하여 층이 형성되고 있습니다.';
+
+  return { sedT, growT, minT, score:s, events, why };
+}
+
+/* ---------- 종합 판정 ---------- */
+function ratingOf(avg){
+  if (avg >= 85) return {txt:'매우 잘 형성됨', cls:'good'};
+  if (avg >= 65) return {txt:'비교적 잘 형성됨', cls:'ok'};
+  if (avg >= 40) return {txt:'불안정하게 형성됨', cls:'warn'};
+  return {txt:'잘 형성되지 않음', cls:'bad'};
+}
+
+/* ---------- 화면 갱신 ---------- */
+function updateHud(){
+  $('statCycle').textContent = cycle;
+  $('statLayers').textContent = Math.max(0, layers.length - 1);
+  const q = $('statQuality');
+  if (!scores.length){ q.textContent = '아직 없음'; q.className = 'badge'; }
+  else {
+    const avg = scores.reduce((a,b)=>a+b,0) / scores.length;
+    const r = ratingOf(avg);
+    q.textContent = r.txt; q.className = 'badge ' + r.cls;
+  }
+}
+function updateFeedback(calc){
+  const ul = $('events'); ul.innerHTML = '';
+  calc.events.forEach(ev => {
+    const li = document.createElement('li');
+    li.textContent = ev.t;
+    if (ev.w) li.className = ev.w + 'Item';
+    ul.appendChild(li);
+  });
+  $('why').textContent = calc.why;
+}
+function updateCore(){
+  const core = $('core'); core.innerHTML = '';
+  layers.forEach(L => {
+    const d = document.createElement('div');
+    d.className = 'lyr';
+    d.style.height = Math.max(2.5, L.t * 1.5) + 'px';
+    d.style.background = COLORS[L.type];
+    core.appendChild(d);
+  });
+}
+function setPhaseUi(ph, msg){
+  document.querySelectorAll('.phase').forEach(p => p.classList.toggle('on', p.dataset.ph === ph));
+  const m = $('stageMsg');
+  if (msg){ m.textContent = msg; m.style.opacity = 1; }
+}
+
+/* ============================================================
+   사이클 진행 (단계 상태 기계)
+   FALL → STICK → GROW → MINERAL → SETTLE → IDLE
+   ============================================================ */
+function startCycle(){
+  if (phase !== 'IDLE') return;
+  cycleCalc = computeCycle();
+  spawnParticles();
+  phase = 'FALL'; phaseT0 = performance.now();
+  setPhaseUi('FALL', '① 진흙·모래가 물속에서 가라앉고 있어요' + (sel.flow==='강함' ? ' — 일부는 물살에 쓸려 가요!' : ''));
+  $('btnOnce').disabled = true;
+  $('btnReset').disabled = true;
+  if (autoLeft <= 0) $('btnAuto').disabled = true;
+}
+
+function stepPhase(now){
+  const el = now - phaseT0;
+  if (phase === 'FALL' && el >= DUR.FALL){
+    // 퇴적층을 쌓기 시작
+    layers.push({type:'sed', t:cycleCalc.sedT, prog:0, anim:true});
+    phase = 'STICK'; phaseT0 = now;
+    setPhaseUi('STICK', '② 미생물 매트의 끈끈한 점액질이 퇴적물을 붙잡았어요');
+  } else if (phase === 'STICK'){
+    const L = layers[layers.length-1];
+    L.prog = Math.min(1, el / (DUR.STICK*0.7));
+    if (el >= DUR.STICK){
+      L.prog = 1; L.anim = false;
+      layers.push({type:'microbe', t:cycleCalc.growT, prog:0, anim:true});
+      phase = 'GROW'; phaseT0 = now;
+      setPhaseUi('GROW', '③ 미생물층이 광합성을 위해 빛을 향해 위로 다시 자라요');
+    }
+  } else if (phase === 'GROW'){
+    const L = layers[layers.length-1];
+    L.prog = Math.min(1, el / DUR.GROW);
+    if (el >= DUR.GROW){
+      L.prog = 1; L.anim = false;
+      layers.push({type:'mineral', t:cycleCalc.minT, prog:0, anim:true});
+      phase = 'MINERAL'; phaseT0 = now;
+      setPhaseUi('MINERAL', sel.ca==='높음'
+        ? '④ 탄산칼슘이 활발히 침전되어 층을 단단하게 굳혀요'
+        : '④ 탄산칼슘 침전이 적어 광물층이 얇게만 생겨요');
+    }
+  } else if (phase === 'MINERAL'){
+    const L = layers[layers.length-1];
+    L.prog = Math.min(1, el / DUR.MINERAL);
+    if (el >= DUR.MINERAL){
+      L.prog = 1; L.anim = false;
+      phase = 'SETTLE'; phaseT0 = now;
+    }
+  } else if (phase === 'SETTLE' && el >= DUR.SETTLE){
+    finishCycle(now);
+  }
+}
+
+function finishCycle(now){
+  cycle += 1;
+  scores.push(cycleCalc.score);
+  updateHud(); updateFeedback(cycleCalc); updateCore();
+  particles = [];
+  phase = 'IDLE';
+  setPhaseUi(null, cycle >= 3
+    ? `사이클 ${cycle}회 완료 — 층이 ${layers.length-1}겹으로 쌓였어요`
+    : `사이클 ${cycle}회 완료 — 같은 과정이 반복되면 층이 계속 쌓여요`);
+  if (autoLeft > 0){
+    autoLeft -= 1;
+    if (autoLeft > 0){ autoTimer = setTimeout(startCycle, reduceMotion ? 150 : 650); return; }
+    $('btnAuto').textContent = '⏩ 5회 자동 진행';
+  }
+  $('btnOnce').disabled = false;
+  $('btnAuto').disabled = false;
+  $('btnReset').disabled = false;
+}
+
+/* ---------- 버튼 ---------- */
+$('btnOnce').addEventListener('click', () => { autoLeft = 0; startCycle(); });
+$('btnAuto').addEventListener('click', () => {
+  if (autoLeft > 0){                                    // 진행 중이면 정지
+    autoLeft = 0; clearTimeout(autoTimer);
+    $('btnAuto').textContent = '⏩ 5회 자동 진행';
+    if (phase === 'IDLE'){ $('btnOnce').disabled = false; $('btnReset').disabled = false; }
+    return;
+  }
+  autoLeft = 5; $('btnAuto').textContent = '■ 자동 진행 정지';
+  startCycle();
+});
+$('btnReset').addEventListener('click', () => {
+  if (phase !== 'IDLE') return;
+  initLayers(); cycle = 0; scores = []; particles = []; autoLeft = 0; cycleCalc = null;
+  $('btnAuto').textContent = '⏩ 5회 자동 진행';
+  updateHud(); updateCore();
+  $('events').innerHTML = '<li>초기화되었습니다. 조건을 바꾸어 다시 탐구해 보세요.</li>';
+  $('why').textContent = '스트로마톨라이트는 미생물이 살아 움직이며 만드는 구조입니다. 퇴적물에 덮여도 미생물층이 빛을 향해 위로 다시 자라기 때문에 층이 반복됩니다.';
+  setPhaseUi(null, '조건을 고르고 ‘한 사이클 진행’을 눌러 보세요');
+});
+
+/* ============================================================
+   그리기: 얕은 바다 단면 + 돔형 누적 단면
+   ============================================================ */
+let W = 0, H = 0;
+function resize(){
+  const dpr = window.devicePixelRatio || 1;
+  const r = canvas.parentElement.getBoundingClientRect();
+  W = Math.max(320, r.width); H = Math.max(300, r.height);
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+new ResizeObserver(resize).observe(canvas.parentElement);
+resize();
+
+// 돔의 기하: 층 두께 합 → 화면상 높이·폭
+function domeGeom(){
+  const totalU = layers.reduce((a,L)=>a + L.t * (L.prog ?? 1), 0);
+  const maxHpx = H * 0.52;
+  const s = Math.min(2.1, maxHpx / Math.max(totalU, 1));   // 두께 단위 → 픽셀 배율
+  const Htot = totalU * s;
+  const R = Math.min(W * 0.36, 90 + Htot * 1.25);          // 돔 반폭
+  return { s, Htot, R, cx: W * 0.5, baseY: H * 0.86 };
+}
+// 돔 표면의 y좌표(입자 착지 계산용)
+function surfaceY(x, g){
+  const dx = Math.abs(x - g.cx);
+  if (g.Htot < 2 || dx >= g.R) return g.baseY - 3;
+  return g.baseY - g.Htot * Math.sqrt(1 - (dx/g.R)*(dx/g.R));
+}
+
+/* ---------- 퇴적물 입자 ---------- */
+function spawnParticles(){
+  particles = [];
+  const n = Math.round(10 * OPT.sed[sel.sed]) + 5;
+  const washN = Math.round(n * (1 - OPT.flow[sel.flow]));  // 쓸려 나갈 입자 수
+  for (let i = 0; i < n; i++){
+    particles.push({
+      x: W*0.5 + (Math.random()-0.5) * W*0.55,
+      y: 20 + Math.random() * H*0.25,
+      vy: 0.9 + Math.random()*1.1,
+      vx: 0,
+      r: 2 + Math.random()*2.2,
+      washed: i < washN,       // 흐름에 쓸려 나가는 입자
+      landed: false, alpha: 1,
+      delay: Math.random() * DUR.FALL * 0.45,
+      born: performance.now(),
+    });
+  }
+}
+function stepParticles(now, g){
+  const flowV = { '약함':0.4, '보통':1.0, '강함':2.6 }[sel.flow];
+  particles.forEach(p => {
+    if (p.landed) return;
+    if (now - p.born < p.delay) return;
+    p.y += p.vy * (reduceMotion ? 4 : 1);
+    p.x += p.vx + flowV * 0.25;
+    if (p.washed && p.y > H*0.45){ p.vx += 0.25; p.alpha -= 0.03; } // 물살에 쓸림
+    const sy = surfaceY(p.x, g);
+    if (!p.washed && p.y >= sy){ p.y = sy; p.landed = true; }
+    if (p.alpha <= 0 || p.x > W + 20) p.landed = true;
+  });
+}
+
+/* ---------- 매 프레임 그리기 ---------- */
+let flowPhase = 0;
+function draw(now){
+  const g = domeGeom();
+
+  // 바닷물: 위가 밝고 아래로 갈수록 짙게
+  const wg = ctx.createLinearGradient(0, 0, 0, H);
+  wg.addColorStop(0, '#cdeaf6'); wg.addColorStop(0.55, '#7db8d8'); wg.addColorStop(1, '#4e93bd');
+  ctx.fillStyle = wg; ctx.fillRect(0, 0, W, H);
+
+  // 햇빛: 세기에 따라 밝기가 달라짐
+  const sunA = { '약함':0.16, '보통':0.34, '강함':0.55 }[sel.sun];
+  const sg = ctx.createRadialGradient(W*0.2, -40, 10, W*0.2, -40, H*0.85);
+  sg.addColorStop(0, `rgba(255,244,190,${sunA})`);
+  sg.addColorStop(1, 'rgba(255,244,190,0)');
+  ctx.fillStyle = sg; ctx.fillRect(0, 0, W, H);
+  ctx.save();                                  // 빛줄기
+  ctx.globalAlpha = sunA * 0.55;
+  ctx.fillStyle = '#fff7cf';
+  for (let i = 0; i < 3; i++){
+    const bx = W * (0.10 + i*0.09);
+    ctx.beginPath();
+    ctx.moveTo(bx, 0); ctx.lineTo(bx + 46, 0);
+    ctx.lineTo(bx + W*0.16 + 46, H*0.8); ctx.lineTo(bx + W*0.16, H*0.8);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+
+  // 물의 흐름 표시(떠다니는 흐름선)
+  if (!reduceMotion){
+    flowPhase += { '약함':0.35, '보통':0.9, '강함':2.4 }[sel.flow];
+    ctx.save(); ctx.globalAlpha = 0.35; ctx.strokeStyle = '#eaf6fb'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+    for (let i = 0; i < 4; i++){
+      const y = H * (0.14 + i*0.11);
+      const x = ((flowPhase * 1.6 + i*173) % (W + 160)) - 80;
+      ctx.beginPath(); ctx.moveTo(x, y);
+      ctx.quadraticCurveTo(x+22, y-4, x+44, y); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // 해저 바닥
+  const fg = ctx.createLinearGradient(0, g.baseY, 0, H);
+  fg.addColorStop(0, '#c8b58e'); fg.addColorStop(1, '#a08758');
+  ctx.fillStyle = fg; ctx.fillRect(0, g.baseY, W, H - g.baseY);
+  ctx.fillStyle = 'rgba(120,98,64,0.5)';       // 바닥의 돌멩이
+  [[0.12,7],[0.2,5],[0.78,8],[0.9,5],[0.68,4]].forEach(([fx,r]) => {
+    ctx.beginPath(); ctx.ellipse(W*fx, g.baseY+9, r*1.5, r, 0, 0, Math.PI*2); ctx.fill();
+  });
+
+  // ===== 돔형 누적 단면: 바깥(최신) 층부터 안쪽으로 그려 띠가 보이게 함 =====
+  const cums = [];                              // 각 층까지의 누적 높이(px)
+  let acc = 0;
+  layers.forEach(L => { acc += L.t * (L.prog ?? 1) * g.s; cums.push(acc); });
+  for (let i = layers.length - 1; i >= 0; i--){
+    const h = cums[i]; if (h < 0.5) continue;
+    const rx = Math.max(64, g.R * Math.pow(h / Math.max(g.Htot,1), 0.85));
+    ctx.beginPath();
+    ctx.moveTo(g.cx - rx, g.baseY);
+    ctx.ellipse(g.cx, g.baseY, rx, h, 0, Math.PI, Math.PI*2);
+    ctx.closePath();
+    ctx.fillStyle = COLORS[layers[i].type];
+    ctx.fill();
+    ctx.strokeStyle = COLORS[layers[i].type + 'Edge'];
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+  // 성장 중인 미생물층의 반짝임 표시
+  if (phase === 'GROW' && !reduceMotion){
+    ctx.save(); ctx.globalAlpha = 0.5 + 0.3*Math.sin(now/120);
+    ctx.strokeStyle = '#d9f2a8'; ctx.lineWidth = 2.5;
+    const h = g.Htot, rx = Math.max(24, g.R);
+    ctx.beginPath(); ctx.ellipse(g.cx, g.baseY, rx, h, 0, Math.PI*1.15, Math.PI*1.85);
+    ctx.stroke(); ctx.restore();
+  }
+  // 광물 침전 반짝임
+  if (phase === 'MINERAL' && sel.ca === '높음' && !reduceMotion){
+    ctx.save(); ctx.fillStyle = '#ffffff';
+    for (let i = 0; i < 8; i++){
+      const a = Math.PI + (i/7) * Math.PI;
+      const tw = 0.4 + 0.6 * Math.abs(Math.sin(now/150 + i*1.7));
+      ctx.globalAlpha = tw * 0.8;
+      const px = g.cx + Math.cos(a) * g.R * 0.8;
+      const py = g.baseY + Math.sin(a) * g.Htot * 0.9 - 6;
+      ctx.beginPath(); ctx.arc(px, py, 1.8, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // 퇴적물 입자
+  stepParticles(now, g);
+  ctx.save();
+  particles.forEach(p => {
+    ctx.globalAlpha = Math.max(0, p.alpha);
+    ctx.fillStyle = p.washed ? '#b59a72' : '#8a6c44';
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill();
+  });
+  ctx.restore();
+}
+
+/* ---------- 메인 루프 ---------- */
+function loop(now){
+  if (phase !== 'IDLE') stepPhase(now);
+  draw(now);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+updateHud(); updateCore();
+
+/* ---------- 관찰 기록: 브라우저에 자동 저장 ---------- */
+const notes = $('notes');
+try { const saved = localStorage.getItem('stromatolite-notes'); if (saved) notes.value = saved; } catch(e){}
+notes.addEventListener('input', () => {
+  try { localStorage.setItem('stromatolite-notes', notes.value); } catch(e){}
+});
+</script>
+</body>
+</html>
