@@ -41,6 +41,10 @@ main{display:grid;grid-template-columns:minmax(0,1.9fr) minmax(300px,1fr);gap:20
 .left{display:flex;flex-direction:column;gap:10px;min-width:0}
 .stage{position:relative;background:var(--panel);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
 .stage canvas{display:block;width:100%;height:auto;aspect-ratio:16/9}
+.stage-bar{position:absolute;left:12px;right:12px;top:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;pointer-events:none}
+.stage-bar[hidden]{display:none}
+.stage-bar .tag{background:rgba(14,28,27,.72);color:#e9f0ee;font-size:13px;font-weight:600;padding:6px 12px;border-radius:999px;backdrop-filter:blur(2px)}
+.stage-bar .btn{pointer-events:auto;padding:7px 12px;font-size:14px;background:rgba(255,255,255,.92);color:#16302c;border-color:transparent}
 .legend{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;font-weight:500;color:var(--ink-2);padding:0 6px}
 .legend span::before{content:"";display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px;background:var(--c)}
 .panel{background:var(--panel);border-radius:16px;box-shadow:var(--shadow);padding:18px 20px 18px;display:flex;flex-direction:column;gap:12px;position:sticky;top:20px;max-height:calc(100vh - 40px);overflow-y:auto}
@@ -101,6 +105,7 @@ footer .copyright a{color:inherit}
   <div class="left">
     <div class="stage">
       <canvas id="cv" width="960" height="540" aria-label="해저 표면을 확대한 관찰 화면"></canvas>
+      <div class="stage-bar" id="sec-bar" hidden><span class="tag" id="sec-tag">층의 단면</span><button class="btn" id="sec-close">단면 닫기</button></div>
     </div>
     <div class="legend">
       <span style="--c:#3f9a63">남세균</span><span style="--c:#bfe9ea">점액질</span><span style="--c:#d9b97a">퇴적물</span>
@@ -130,8 +135,10 @@ footer .copyright a{color:inherit}
     <button class="card" id="s-eps"><span class="ct">남세균이 점액질을 분비한다</span><span class="cd">끈끈한 점액질이 남세균 매트의 표면을 덮습니다.</span><span class="ck" aria-hidden="true">✓</span></button>
     <button class="card" id="s-sed"><span class="ct">퇴적물이 쌓인다</span><span class="cd">물에 실려 온 미세한 퇴적물이 점액질에 붙잡힙니다.</span><span class="ck" aria-hidden="true">✓</span></button>
     <button class="card" id="s-grow"><span class="ct">남세균이 성장한다</span><span class="cd">남세균은 햇빛을 받기 위해 쌓인 퇴적물 위로 이동해 다시 성장합니다.</span><span class="ck" aria-hidden="true">✓</span></button>
+    <button class="btn primary big" id="s-next" hidden>다음 층 쌓기</button>
     <div class="count"><span>만들어진 층</span><b id="s-layers">0</b></div>
     <div class="btnrow">
+      <button class="btn" id="s-section" style="flex:1.2" disabled>층의 단면 보기</button>
       <button class="btn" id="s-reset" style="flex:1">처음부터 다시</button>
     </div>
   </aside>
@@ -194,8 +201,8 @@ function tween(ms, fn){
     const t0 = performance.now();
     const f = () => {
       if (anim.id !== id){ rej(new Abort()); return; }
-      const p = clamp((performance.now() - t0) / ms, 0, 1); fn(p);
-      if (p < 1) requestAnimationFrame(f); else res();
+      const p = clamp((performance.now() - t0) / ms, 0, 1);
+      if (fn(p) === true || p >= 1) res(); else requestAnimationFrame(f);
     };
     f();
   });
@@ -207,13 +214,28 @@ const ignoreAbort = e => { if (!(e instanceof Abort)) throw e; };
 const sim = {
   base: null, layers: [], filaments: [], matCover: 0, eps: 0,
   heap: new Float32Array(N), heapGrains: [], particles: [], bubbles: [], hl: null,
-  cam: { s: 1, A: FLOOR }, time: 0, dirty: true,
+  cam: { s: 1, A: FLOOR }, camS: 1, section: false, time: 0, dirty: true,
   get top(){ return this.layers.length ? this.layers[this.layers.length - 1].top : this.base; },
+  get count(){ let n = 0; for (const L of this.layers) if (L.done) n++; return n; },   // 완성된 층 수
   surfW(c){ return FLOOR - this.top[clamp(Math.round(c), 0, N - 1)]; },   // 표면의 세계 y
   get off(){ return this.matCover * MAT_T + this.eps * EPS_T; },           // 매트·점액질 두께
 };
 const Y = w => sim.cam.A + (w - FLOOR) * sim.cam.s;                         // 세계 y → 화면 y
-function setCam(s){ sim.cam.s = s; sim.cam.A = H - (H - FLOOR) * s; sim.dirty = true; }
+const bottomA = s => H - (H - FLOOR) * s;                                   // 화면 아래를 기준으로 고정
+function setCam(s){ sim.cam.s = s; sim.cam.A = bottomA(s); sim.camS = s; sim.dirty = true; }
+function camTo(s, A, ms){
+  const s0 = sim.cam.s, A0 = sim.cam.A;
+  return tween(ms, p => { const e = easeIO(p); sim.cam.s = lerp(s0, s, e); sim.cam.A = lerp(A0, A, e); sim.dirty = true; });
+}
+const stackTopW = () => { let m = 0; for (const v of sim.top) m = Math.max(m, v); return FLOOR - m; };
+// 층이 화면 위쪽에 가까워지면 전체 구조가 보이도록 세로 비율을 부드럽게 축소(필요할 때만)
+async function fitCamera(){
+  const topW = stackTopW();
+  if (Y(topW) >= 0.26 * H) return;
+  const s = clamp(0.60 * H / (H - topW), 0.2, 1);
+  sim.camS = s;
+  await camTo(s, bottomA(s), dur(1000));
+}
 
 function spawnFilaments(n, alpha = 1){
   for (let k = 0; k < n; k++){
@@ -223,7 +245,7 @@ function spawnFilaments(n, alpha = 1){
 }
 function commitLayer(top, grains){
   const prev = sim.top;
-  sim.layers.push({ bottom: prev, top, h: rand(36, 44), s: rand(38, 50), l: rand(60, 70), lw: rand(1.4, 2.4), ll: rand(40, 52), age: 0, grains });
+  sim.layers.push({ bottom: prev, top, h: rand(36, 44), s: rand(38, 50), l: rand(60, 70), lw: rand(1.4, 2.4), ll: rand(40, 52), age: 0, done: false, grains });
   sim.matCover = 0; sim.eps = 0; sim.heap.fill(0); sim.heapGrains = [];
   for (const f of sim.filaments) f.buried = true;
   sim.dirty = true;
@@ -233,7 +255,7 @@ function finishGrowth(){
   for (const f of sim.filaments){ f.mv = null; f.alpha = 1; f.y = sim.surfW(f.x / COLW) - MAT_T * 0.55; }
   spawnFilaments(FULL - sim.filaments.length);
   sim.matCover = 1;
-  if (sim.layers.length) sim.layers[sim.layers.length - 1].age = 1;
+  if (sim.layers.length){ const L = sim.layers[sim.layers.length - 1]; L.age = 1; L.done = true; }
   sim.dirty = true;
 }
 // 단계 번호까지의 상태를 즉시 구성: 0 바닥만, 1 매트, 2 점액질, 3 퇴적층, 4 새 매트
@@ -241,7 +263,7 @@ function setState(stage){
   cancelAnims();
   sim.base = baseProfile(); sim.layers = []; sim.filaments = []; sim.matCover = 0; sim.eps = 0;
   sim.heap.fill(0); sim.heapGrains = []; sim.particles = []; sim.bubbles = []; sim.hl = null;
-  setCam(1);
+  setCam(1); sim.section = false;
   if (stage >= 1){ spawnFilaments(FULL); sim.matCover = 1; }
   if (stage >= 2) sim.eps = 1;
   if (stage >= 3) commitLayer(layerProfile(sim.top, MAT_T + EPS_T), bakeGrains([], sim.top, layerProfileLast()));
@@ -288,7 +310,7 @@ async function sedimentStep(sticky){
     const want = Math.floor(clamp(p / 0.72, 0, 1) * total);
     while (made < want){
       const c = rand(0, 12); const sy = sim.surfW(c) - sim.off;
-      sim.particles.push({ x: -12 - rand(0, 50), y: sy - rand(10, 300), vx: rand(3, 5), vy: rand(0.3, 1.0), r: rand(1, 2.2), col: grainColor(), sticky, inc, st: 'flow', a: 1, rest: 0, seed: rand(0, 6.28) });
+      sim.particles.push({ x: -12 - rand(0, 50), y: sy - rand(10, 300), vx: rand(3, 5), vy: rand(0.3, 1.0), r: rand(1, 2.2), col: grainColor(), sticky, inc, st: 'flow', a: 1, rest: 0, cap: rand(0.55, 0.9), seed: rand(0, 6.28) });
       made++;
     }
   });
@@ -300,7 +322,7 @@ async function sedimentStep(sticky){
     sim.particles = [];
     commitLayer(target, bakeGrains(stuck, prev, target));
   } else {
-    await tween(dur(1600), p => { for (const q of sim.particles) if (q.st === 'flow') q.a = Math.min(q.a, 1 - p); });
+    await tween(dur(3200), p => { for (const q of sim.particles) if (q.st === 'flow') q.a = Math.min(q.a, 1 - p * 1.6); return sim.particles.length === 0; });
     sim.particles = []; sim.heap.fill(0); sim.heapGrains = [];
   }
 }
@@ -325,10 +347,34 @@ async function growthStep(){
     L.age = clamp((p - 0.15) / 0.85, 0, 1); sim.dirty = true;
   });
   finishGrowth();
+  await fitCamera();
   // 이번에 만들어진 얇은 층의 경계를 잠시 강조
   sim.hl = { k: sim.layers.length - 1, t: 0 };
   await tween(dur(1600), p => { sim.hl.t = p; });
   sim.hl = null;
+}
+
+// 퇴적물이 새로 쌓이지 않은 상태에서 성장: 현재 표면의 남세균이 조금 늘어난다
+async function smallGrowth(){
+  const olds = sim.filaments.map(f => [f, f.len]);
+  spawnFilaments(14, 0);
+  const fresh = sim.filaments.slice(-14);
+  for (const f of fresh) f.born = rand(0, 0.5);
+  await tween(dur(1700), p => {
+    for (const [f, l0] of olds) f.len = l0 * (1 + 0.06 * easeOut(p));
+    for (const f of fresh) f.alpha = clamp((p - f.born) / 0.5, 0, 1);
+  });
+  for (const f of fresh) f.alpha = 1;
+}
+// 층의 단면 보기: 전체 구조를 화면에 맞게 확대해 경계를 살펴본다
+async function openSection(){
+  sim.section = true;
+  const s = clamp(0.74 * H / (FLOOR - stackTopW()), 0.3, 2.4);
+  await camTo(s, 0.9 * H, dur(900));
+}
+async function closeSection(){
+  await camTo(sim.camS, bottomA(sim.camS), dur(800));
+  sim.section = false;
 }
 
 // ---------- 매 프레임 물리 ----------
@@ -347,8 +393,8 @@ function update(){
         if (q.sticky && Math.random() < 0.7){
           q.st = 'stuck'; q.y = sy - q.r * 0.5; sim.heapGrains.push(q);
           const add = 0.3 + (q.inc[ci] - sim.heap[ci]) * 0.06;
-          sim.heap[ci] = Math.min(q.inc[ci] * 0.8, sim.heap[ci] + add);
-          for (let k = 1; k <= 6; k++){ const v = sim.heap[ci] - k * 0.12; if (ci - k >= 0) sim.heap[ci - k] = Math.min(q.inc[ci - k] * 0.8, Math.max(sim.heap[ci - k], v)); if (ci + k < N) sim.heap[ci + k] = Math.min(q.inc[ci + k] * 0.8, Math.max(sim.heap[ci + k], v)); }
+          sim.heap[ci] = Math.min(q.inc[ci] * q.cap, sim.heap[ci] + add);
+          for (let k = 1; k <= 6; k++){ const v = sim.heap[ci] - k * 0.12; if (ci - k >= 0) sim.heap[ci - k] = Math.min(q.inc[ci - k] * q.cap, Math.max(sim.heap[ci - k], v)); if (ci + k < N) sim.heap[ci + k] = Math.min(q.inc[ci + k] * q.cap, Math.max(sim.heap[ci + k], v)); }
         } else if (q.sticky){ q.st = 'skim'; q.y = sy - q.r; }
         else { q.st = 'rest'; q.y = sy - q.r * 0.6; q.rest = rand(25, 75); }
       }
@@ -465,6 +511,16 @@ function draw(){
   ctx.globalAlpha = 1;
   for (const b of sim.bubbles){ ctx.globalAlpha = b.a * 0.6; ctx.fillStyle = '#e4fbfb'; ctx.beginPath(); ctx.arc(b.x, Y(b.y), b.r, 0, 6.283); ctx.fill(); }
   ctx.globalAlpha = 1;
+  // 단면 보기: 각 층의 경계를 얇은 선과 은은한 강조로 표시
+  if (sim.section){
+    ctx.save();
+    for (let k = 0; k <= sim.layers.length; k++){
+      const prof = k < sim.layers.length ? sim.layers[k].bottom : sim.top;
+      ctx.globalAlpha = 0.45; ctx.strokeStyle = '#fff6d8'; ctx.lineWidth = 4; pathAlong(ctx, prof, 0.5); ctx.stroke();
+      ctx.globalAlpha = 0.85; ctx.strokeStyle = '#4a3f33'; ctx.lineWidth = 1.2; pathAlong(ctx, prof, 0.5); ctx.stroke();
+    }
+    ctx.restore();
+  }
   // 새로 만들어진 층의 경계 강조
   if (sim.hl){
     const L = sim.layers[sim.hl.k]; const a = Math.sin(sim.hl.t * Math.PI);
@@ -511,29 +567,73 @@ $('t-reset').addEventListener('click', () => playTeacher(0));
 
 // ---------- 학생 체험 ----------
 const sdone = { eps: false, sed: false, grow: false };
-let sBusy = false;
+let sBusy = false, sLocked = false, sSection = false, msgBefore = '';
 const START_MSG = '바닥에 남세균 매트가 형성되어 있습니다. 다음에 일어날 과정을 선택해 보세요.';
 function setMsg(text, kind){ const m = $('s-msg'); m.textContent = text; m.className = 'msg' + (kind ? ' ' + kind : ''); }
 function renderStudent(){
-  for (const k of ['eps', 'sed', 'grow']){ const el = $('s-' + k); el.classList.toggle('done', sdone[k]); el.disabled = sBusy || sdone[k]; el.setAttribute('aria-label', el.querySelector('.ct').textContent + (sdone[k] ? ' (완료)' : '')); }
-  $('s-layers').textContent = sim.layers.length;
-  $('s-reset').disabled = sBusy;
+  for (const k of ['eps', 'sed', 'grow']){ const el = $('s-' + k); el.classList.toggle('done', sdone[k]); el.disabled = sBusy || sLocked || sSection || sdone[k]; el.setAttribute('aria-label', el.querySelector('.ct').textContent + (sdone[k] ? ' (완료)' : '')); }
+  $('s-layers').textContent = sim.count;
+  document.querySelector('#panel-student .q').hidden = sLocked;
+  $('s-next').hidden = !sLocked; $('s-next').disabled = sBusy || sSection;
+  $('s-section').disabled = sBusy || sim.count < 2;
+  $('s-section').textContent = sSection ? '단면 닫기' : '층의 단면 보기';
+  $('s-reset').disabled = sBusy || sSection;
+  $('sec-bar').hidden = !sSection; $('sec-close').disabled = sBusy;
+  $('sec-tag').textContent = `층의 단면 · 만들어진 층 ${sim.count}개`;
 }
 async function studentAction(key){
-  if (sBusy || sdone[key]) return;
+  if (sBusy || sLocked || sSection || sdone[key]) return;
   sBusy = true; renderStudent();
   const id = anim.id;
   try {
-    if (key === 'eps'){ setMsg('남세균이 점액질을 분비합니다. 매트 표면이 얇은 막으로 덮입니다.'); await epsStep(); sdone.eps = true; setMsg('점액질이 매트 표면을 덮었습니다. 다음에는 어떤 과정이 일어날까요?'); }
-    else if (key === 'sed'){ setMsg('물에 실려 온 퇴적물이 들어옵니다. 일부는 점액질에 붙잡히고 일부는 흘러갑니다.'); await sedimentStep(true); sdone.sed = true; setMsg('퇴적물이 매트 위에 얇게 쌓였습니다. 다음에는 어떤 과정이 일어날까요?'); }
-    else { setMsg('남세균이 쌓인 퇴적물 위로 이동해 새 표면에서 다시 성장합니다.'); await growthStep(); sdone.grow = true; setMsg('층이 1개 더 만들어졌습니다.', 'ok'); sdone.eps = sdone.sed = sdone.grow = false; }
+    if (key === 'eps'){
+      setMsg('남세균이 점액질을 분비합니다. 매트 표면이 얇은 막으로 덮입니다.');
+      await epsStep(); sdone.eps = true;
+      setMsg('점액질이 남세균 매트의 표면을 덮었습니다.');
+    } else if (key === 'sed'){
+      if (sdone.eps){
+        setMsg('물에 실려 온 퇴적물이 들어옵니다. 일부는 점액질에 붙잡히고 일부는 계속 흘러갑니다.');
+        await sedimentStep(true); sdone.sed = true;
+        setMsg('퇴적물이 점액질에 붙잡혀 매트 위에 얇게 쌓였습니다.');
+      } else {
+        setMsg('물에 실려 온 퇴적물이 들어옵니다…');
+        await sedimentStep(false);
+        setMsg('퇴적물이 내려앉았지만, 붙잡아 줄 점액질이 없어 대부분 물에 쓸려 갔습니다.');
+      }
+    } else {
+      if (sdone.sed){
+        setMsg('남세균이 쌓인 퇴적물 위로 이동해 새 표면에서 다시 성장합니다.');
+        await growthStep(); sdone.grow = true; sLocked = true;
+        setMsg('층이 1개 더 만들어졌습니다.', 'ok');
+      } else {
+        setMsg('남세균이 현재 표면에서 성장합니다…');
+        await smallGrowth();
+        setMsg('남세균이 현재 표면에서 성장했습니다. 아직 새 퇴적물이 쌓이지 않아 새로운 층은 만들어지지 않았습니다.');
+      }
+    }
   } catch (e){ ignoreAbort(e); return; }
   finally { if (anim.id === id){ sBusy = false; renderStudent(); } }
 }
 $('s-eps').addEventListener('click', () => studentAction('eps'));
 $('s-sed').addEventListener('click', () => studentAction('sed'));
 $('s-grow').addEventListener('click', () => studentAction('grow'));
-function resetStudent(){ setState(1); sdone.eps = sdone.sed = sdone.grow = false; sBusy = false; setMsg(START_MSG); renderStudent(); }
+$('s-next').addEventListener('click', () => {
+  if (sBusy || sSection || !sLocked) return;
+  sdone.eps = sdone.sed = sdone.grow = false; sLocked = false;
+  setMsg('다음에 일어날 과정을 선택해 보세요.'); renderStudent();
+});
+async function toggleSection(){
+  if (sBusy || (!sSection && sim.count < 2)) return;
+  sBusy = true; const id = anim.id;
+  try {
+    if (!sSection){ sSection = true; msgBefore = $('s-msg').textContent; renderStudent(); setMsg('지금까지 만들어진 층의 단면입니다. 각 층의 경계를 살펴보세요. 닫으면 이어서 층을 쌓을 수 있습니다.'); await openSection(); }
+    else { await closeSection(); sSection = false; setMsg(msgBefore); }
+  } catch (e){ ignoreAbort(e); return; }
+  finally { if (anim.id === id){ sBusy = false; renderStudent(); } }
+}
+$('s-section').addEventListener('click', toggleSection);
+$('sec-close').addEventListener('click', toggleSection);
+function resetStudent(){ setState(1); sdone.eps = sdone.sed = sdone.grow = false; sBusy = false; sLocked = false; sSection = false; setMsg(START_MSG); renderStudent(); }
 $('s-reset').addEventListener('click', resetStudent);
 
 // ---------- 탭 ----------
@@ -542,7 +642,7 @@ function setMode(m){
   mode = m;
   $('tab-teacher').setAttribute('aria-selected', m === 'teacher'); $('tab-student').setAttribute('aria-selected', m === 'student');
   $('panel-teacher').classList.toggle('hidden', m !== 'teacher'); $('panel-student').classList.toggle('hidden', m !== 'student');
-  cancelAnims(); tBusy = false; sBusy = false;
+  cancelAnims(); tBusy = false; sBusy = false; sSection = false; $('sec-bar').hidden = true;
   if (m === 'teacher') playTeacher(0); else resetStudent();
   try { localStorage.setItem('strom-mode', m); } catch (e) {}
 }
