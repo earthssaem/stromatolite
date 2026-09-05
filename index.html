@@ -157,8 +157,8 @@ const cv = $('cv'), ctx = cv.getContext('2d');
 const W = 960, H = 540;
 const FLOOR = 352;            // 해저 기준면의 세계 좌표 y(화면 중앙보다 조금 아래)
 const N = 192, COLW = W / N;  // 표면을 나눈 열의 수
-const LAYER_T = 28;           // 한 층의 기준 두께(세계 좌표 px)
-const MAT_T = 12, EPS_T = 9;  // 매트·점액질 막의 두께
+const LAYER_T = 18;           // 한 번 쌓이는 퇴적물층의 기준 두께(교육용 시각 비율)
+const MAT_T = 7, EPS_T = 3;   // 현재 표면의 매트·점액질 표시 두께(일시적 시각 요소, 층 두께에 더하지 않음)
 const FULL = 120;             // 매트를 이루는 남세균 가닥 수
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -185,9 +185,9 @@ function baseProfile(){
   return t;
 }
 // 바로 아래층의 굴곡을 따라가되 두께가 조금씩 다른 새 층
-function layerProfile(prev, extra){
+function layerProfile(prev){
   const nz = smoothNoise(N, 7, 4), ph = rand(0, 6.28), t = new Float32Array(N);
-  for (let i = 0; i < N; i++){ const u = i / (N - 1); const th = LAYER_T * (1 + 0.22 * nz[i] + 0.12 * Math.sin(u * Math.PI * 2.2 + ph)); t[i] = prev[i] + extra + Math.max(12, th); }
+  for (let i = 0; i < N; i++){ const u = i / (N - 1); const th = LAYER_T * clamp(1 + 0.13 * nz[i] + 0.07 * Math.sin(u * Math.PI * 2.2 + ph), 0.8, 1.2); t[i] = prev[i] + th; }
   return t;
 }
 
@@ -213,7 +213,7 @@ const ignoreAbort = e => { if (!(e instanceof Abort)) throw e; };
 const sim = {
   base: null, layers: [], filaments: [], matCover: 0, eps: 0,
   heap: new Float32Array(N), heapGrains: [], particles: [], bubbles: [], sprouts: [], hl: null,
-  cam: { s: 1, A: FLOOR }, camS: 1, section: false, time: 0, dirty: true,
+  cam: { s: 1, A: FLOOR }, camS: 1, section: false, time: 0, dirty: true, epsNoise: smoothNoise(N, 4, 3),
   get top(){ return this.layers.length ? this.layers[this.layers.length - 1].top : this.base; },
   get count(){ let n = 0; for (const L of this.layers) if (L.done) n++; return n; },   // 완성된 층 수
   surfW(c){ return FLOOR - this.top[clamp(Math.round(c), 0, N - 1)]; },   // 표면의 세계 y
@@ -239,19 +239,19 @@ async function fitCamera(){
 function spawnFilaments(n, alpha = 1){
   for (let k = 0; k < n; k++){
     const x = rand(4, W - 4);
-    sim.filaments.push({ x, y: sim.surfW(x / COLW) - MAT_T * 0.55, len: rand(28, 54), amp: rand(2, 4), seed: rand(0, 6.28), hue: rand(126, 152), light: rand(44, 62), alpha, g: 1, buried: false, born: 0 });
+    sim.filaments.push({ x, y: sim.surfW(x / COLW) - MAT_T * 0.5, len: rand(24, 46), amp: rand(1.4, 2.6), seed: rand(0, 6.28), hue: rand(126, 152), light: rand(44, 62), alpha, g: 1, buried: false, born: 0 });
   }
 }
 function commitLayer(top, grains){
   const prev = sim.top;
-  sim.layers.push({ bottom: prev, top, h: rand(36, 44), s: rand(38, 50), l: rand(60, 70), lw: rand(1.4, 2.4), ll: rand(40, 52), age: 0, done: false, grains });
+  sim.layers.push({ bottom: prev, top, h: rand(36, 44), s: rand(38, 50), l: rand(60, 70), lw: rand(1.1, 1.9), ll: rand(40, 52), age: 0, done: false, grains });
   sim.matCover = 0; sim.eps = 0; sim.heap.fill(0); sim.heapGrains = [];
   for (const f of sim.filaments) f.buried = true;
   sim.dirty = true;
 }
 function finishGrowth(){
   sim.filaments = sim.filaments.filter(f => !f.buried);
-  for (const f of sim.filaments){ f.alpha = 1; f.g = 1; f.y = sim.surfW(f.x / COLW) - MAT_T * 0.55; }
+  for (const f of sim.filaments){ f.alpha = 1; f.g = 1; f.y = sim.surfW(f.x / COLW) - MAT_T * 0.5; }
   sim.sprouts = [];
   spawnFilaments(FULL - sim.filaments.length);
   sim.matCover = 1;
@@ -261,21 +261,20 @@ function finishGrowth(){
 // 단계 번호까지의 상태를 즉시 구성: 0 바닥만, 1 매트, 2 점액질, 3 퇴적층, 4 새 매트
 function setState(stage){
   cancelAnims();
-  sim.base = baseProfile(); sim.layers = []; sim.filaments = []; sim.matCover = 0; sim.eps = 0;
+  sim.base = baseProfile(); sim.epsNoise = smoothNoise(N, 4, 3); sim.layers = []; sim.filaments = []; sim.matCover = 0; sim.eps = 0;
   sim.heap.fill(0); sim.heapGrains = []; sim.particles = []; sim.bubbles = []; sim.sprouts = []; sim.hl = null;
   setCam(1); sim.section = false;
   if (stage >= 1){ spawnFilaments(FULL); sim.matCover = 1; }
   if (stage >= 2) sim.eps = 1;
-  if (stage >= 3) commitLayer(layerProfile(sim.top, MAT_T + EPS_T), bakeGrains([], sim.top, layerProfileLast()));
+  if (stage >= 3){ const top = layerProfile(sim.top); commitLayer(top, bakeGrains([], sim.top, top)); }
   if (stage >= 4) finishGrowth();
   sim.dirty = true;
 }
-function layerProfileLast(){ return sim.layers.length ? sim.layers[sim.layers.length - 1].top : sim.top; }
 // 층에 남길 알갱이: 세계 x와 층 안에서의 상대 높이(0~1)
 function bakeGrains(stuck, bottom, top){
   const g = stuck.map(q => { const ci = clamp(Math.round(q.x / COLW), 0, N - 1); const th = top[ci] - bottom[ci]; return { x: q.x, f: clamp(((FLOOR - q.y) - bottom[ci]) / th, 0.08, 0.92), r: q.r, col: q.col }; });
-  while (g.length < 90){ const x = rand(0, W); g.push({ x, f: rand(0.1, 0.9), r: rand(1, 2.2), col: grainColor() }); }
-  return g.slice(0, 140);
+  while (g.length < 40){ const x = rand(0, W); g.push({ x, f: rand(0.12, 0.88), r: rand(0.9, 1.8), col: grainColor() }); }
+  return g.slice(0, 70);
 }
 const grainColor = () => `hsl(${rand(34, 46)},${rand(35, 55)}%,${rand(48, 68)}%)`;
 
@@ -302,8 +301,8 @@ async function epsStep(){
 }
 // 퇴적물이 쌓인다 (sticky: 점액질이 있어 붙잡히는가)
 async function sedimentStep(sticky){
-  const prev = sim.top, target = layerProfile(prev, sim.off), inc = new Float32Array(N);
-  for (let i = 0; i < N; i++) inc[i] = target[i] - prev[i] - sim.off;
+  const prev = sim.top, target = layerProfile(prev), inc = new Float32Array(N);
+  for (let i = 0; i < N; i++) inc[i] = target[i] - prev[i];
   sim.heap.fill(0); sim.heapGrains = [];
   const total = 260; let made = 0;
   await tween(dur(3000), p => {
@@ -315,9 +314,19 @@ async function sedimentStep(sticky){
     }
   });
   if (sticky){
-    // 남은 퇴적물이 매트 위에 얇고 불규칙하게 쌓인다
-    const from = Float32Array.from(sim.heap);
-    await tween(dur(800), p => { const e = easeIO(p); for (let i = 0; i < N; i++) sim.heap[i] = lerp(from[i], inc[i], e); for (const q of sim.particles) if (q.st === 'flow') q.a = 1 - e; });
+    // 남은 퇴적물이 얇고 불규칙하게 정리되며, 점액질은 서서히 사라지고 매트는 가느다란 경계로 바뀐다
+    // (매트·점액질의 임시 표시 두께는 완성된 층 두께에 포함하지 않되, 표면 높이는 끊김 없이 보간)
+    const from = Float32Array.from(sim.heap), off0 = sim.off, eps0 = sim.eps, mat0 = sim.matCover;
+    for (const q of sim.heapGrains){ const ci = clamp(Math.round(q.x / COLW), 0, N - 1); q.rel = clamp(((FLOOR - q.y) - prev[ci]) / Math.max(1, off0 + from[ci]), 0.05, 1); }
+    await tween(dur(1100), p => {
+      const e = easeIO(p);
+      sim.eps = eps0 * (1 - clamp(p / 0.6, 0, 1));
+      sim.matCover = mat0 * (1 - clamp((p - 0.25) / 0.75, 0, 1));
+      const off = sim.off;
+      for (let i = 0; i < N; i++) sim.heap[i] = Math.max(0, lerp(from[i] + off0, inc[i], e) - off);
+      for (const q of sim.heapGrains){ const ci = clamp(Math.round(q.x / COLW), 0, N - 1); q.y = FLOOR - prev[ci] - q.rel * (off + sim.heap[ci]); }
+      for (const q of sim.particles) if (q.st === 'flow') q.a = Math.min(q.a, 1 - e);
+    });
     const stuck = sim.heapGrains.map(q => ({ x: q.x, y: q.y, r: q.r, col: q.col }));
     sim.particles = [];
     commitLayer(target, bakeGrains(stuck, prev, target));
@@ -355,7 +364,7 @@ async function growthStep(){
     for (const sp of sim.sprouts){ sp.t = clamp((p - sp.d) / 0.33, 0, 1); if (p > 0.8) sp.a = 1 - (p - 0.8) / 0.2; }
     while (bi < births.length && births[bi].at <= p){
       const b = births[bi++]; spawnFilaments(1, 1);
-      const f = sim.filaments[sim.filaments.length - 1]; f.x = b.x; f.y = sim.surfW(b.x / COLW) - MAT_T * 0.55; f.g = 0; f.born = b.at; fresh.push(f);
+      const f = sim.filaments[sim.filaments.length - 1]; f.x = b.x; f.y = sim.surfW(b.x / COLW) - MAT_T * 0.5; f.g = 0; f.born = b.at; fresh.push(f);
     }
     for (const f of fresh) f.g = easeOut(clamp((p - f.born) / 0.3, 0, 1));
     sim.matCover = clamp((p - 0.5) / 0.5, 0, 1);
@@ -406,7 +415,7 @@ function update(){
       const sy = sim.surfW(c) - sim.off - sim.heap[ci];
       if (q.y >= sy - q.r){
         if (q.sticky && Math.random() < 0.7){
-          q.st = 'stuck'; q.y = sy - q.r * 0.5; sim.heapGrains.push(q);
+          q.st = 'stuck'; q.y = sy + (sim.heap[ci] < 1 ? rand(-q.r * 0.4, EPS_T * 0.7 * sim.eps) : -q.r * 0.5); sim.heapGrains.push(q);
           const add = 0.3 + (q.inc[ci] - sim.heap[ci]) * 0.06;
           sim.heap[ci] = Math.min(q.inc[ci] * q.cap, sim.heap[ci] + add);
           for (let k = 1; k <= 6; k++){ const v = sim.heap[ci] - k * 0.12; if (ci - k >= 0) sim.heap[ci - k] = Math.min(q.inc[ci - k] * q.cap, Math.max(sim.heap[ci - k], v)); if (ci + k < N) sim.heap[ci + k] = Math.min(q.inc[ci + k] * q.cap, Math.max(sim.heap[ci + k], v)); }
@@ -447,18 +456,20 @@ function pathAlong(c, prof, dy = 0){
 function renderStatic(){
   const c = sctx; c.clearRect(0, 0, W, H);
   const gy = Y(FLOOR - 40), g = c.createLinearGradient(0, gy, 0, H);
-  g.addColorStop(0, '#c9a868'); g.addColorStop(1, '#7c5f36'); c.fillStyle = g;
+  g.addColorStop(0, '#b3925c'); g.addColorStop(1, '#6d532f'); c.fillStyle = g;
   const zero = new Float32Array(N).fill(-(H - FLOOR) / Math.max(sim.cam.s, 0.05));
   pathBetween(c, zero, sim.base); c.fill();
+  // 바닥 기반의 윗면: 퇴적물층과 구별되는 경계
+  c.strokeStyle = 'rgba(80,58,30,.55)'; c.lineWidth = 1.2; pathAlong(c, sim.base, 0.5); c.stroke();
   for (const L of sim.layers){
     c.fillStyle = `hsl(${L.h},${L.s}%,${L.l}%)`; pathBetween(c, L.bottom, L.top); c.fill();
-    c.save(); pathBetween(c, L.bottom, L.top); c.clip(); c.globalAlpha = 0.8;
+    c.save(); pathBetween(c, L.bottom, L.top); c.clip(); c.globalAlpha = 0.75;
     for (const q of L.grains){ const ci = clamp(Math.round(q.x / COLW), 0, N - 1); const y = Y(FLOOR - lerp(L.bottom[ci], L.top[ci], q.f)); c.fillStyle = q.col; c.beginPath(); c.arc(q.x, y, Math.max(0.6, q.r * Math.min(1, sim.cam.s + 0.3)), 0, 6.283); c.fill(); }
     c.restore();
     // 묻힌 이전 매트: 초록에서 채도 낮은 갈색·회색 경계로
     const a = L.age;
     c.strokeStyle = `hsl(${lerp(140, 28, a)},${lerp(45, 14, a)}%,${lerp(38, L.ll, a)}%)`;
-    c.lineWidth = Math.max(1, lerp(3, L.lw, a) * Math.min(1, sim.cam.s + 0.4)); c.globalAlpha = 0.9;
+    c.lineWidth = Math.max(0.8, lerp(2, L.lw, a) * Math.min(1, sim.cam.s + 0.4)); c.globalAlpha = 0.9;
     pathAlong(c, L.bottom, 0.5); c.stroke(); c.globalAlpha = 1;
   }
   sim.dirty = false;
@@ -483,19 +494,33 @@ function draw(){
   ctx.drawImage(sc, 0, 0, W, H);
 
   const s = sim.cam.s, top = sim.top;
-  const matT = Math.max(3, MAT_T * s) * sim.matCover, epsT = Math.max(3, EPS_T * s) * sim.eps;
-  // 현재 표면의 남세균 매트(얇은 초록 띠)
+  const matT = Math.max(2, MAT_T * s) * sim.matCover, epsT = Math.max(2, EPS_T * s) * sim.eps;
+  // 현재 표면의 남세균 매트: 가닥이 주된 요소이고, 그 아래 초록 바탕은 얇고 반투명하게
   if (sim.matCover > 0.01){
-    ctx.save(); ctx.globalAlpha = 0.8 * sim.matCover; ctx.fillStyle = '#256b43';
-    pathAlong(ctx, top, -matT); for (let i = N - 1; i >= 0; i--) ctx.lineTo(i * COLW, Y(FLOOR - top[i]) + 1); ctx.closePath(); ctx.fill();
+    ctx.save(); ctx.globalAlpha = 0.42 * Math.min(1, sim.matCover * 2); ctx.fillStyle = '#2e7a4c';
+    pathAlong(ctx, top, -matT); for (let i = N - 1; i >= 0; i--) ctx.lineTo(i * COLW, Y(FLOOR - top[i]) + 0.5); ctx.closePath(); ctx.fill();
     ctx.restore();
   }
-  // 점액질: 매트 표면을 덮는 얇고 반투명한 막
+  // 점액질: 매트 표면과 가닥 주변에 붙은 얇고 불규칙한 반투명 막(두께·투명도가 구간마다 다름)
   if (sim.eps > 0.01){
-    ctx.save(); ctx.globalAlpha = 0.6 * sim.eps; ctx.fillStyle = '#c9f0f2';
-    pathAlong(ctx, top, -matT - epsT); for (let i = N - 1; i >= 0; i--) ctx.lineTo(i * COLW, Y(FLOOR - top[i]) - matT + 0.5); ctx.closePath(); ctx.fill();
-    ctx.globalAlpha = 0.55 * sim.eps; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.2;
-    ctx.beginPath(); for (let i = 0; i < N; i++){ const x = i * COLW, y = Y(FLOOR - top[i]) - matT - epsT + 0.8 + Math.sin(i * 0.45 + t * 1.5) * 0.6; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); } ctx.stroke();
+    ctx.save();
+    const nz = sim.epsNoise, base = i => Y(FLOOR - top[i]) - matT + 0.5;
+    const thick = i => epsT * (1.0 + 0.6 * nz[i] + 0.15 * Math.sin(i * 0.35 + t * 1.2));
+    ctx.fillStyle = '#c4ecef'; ctx.globalAlpha = 0.45 * sim.eps;
+    ctx.beginPath(); for (let i = 0; i < N; i++){ const x = i * COLW, y = base(i) - thick(i); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+    for (let i = N - 1; i >= 0; i--) ctx.lineTo(i * COLW, base(i) + matT * 0.5); ctx.closePath(); ctx.fill();
+    // 조금 더 진한 구간
+    ctx.globalAlpha = 0.3 * sim.eps;
+    ctx.beginPath(); let open = false;
+    for (let i = 0; i < N; i++){ if (nz[i] > 0.15){ const x = i * COLW, y = base(i) - thick(i) * 1.15; open ? ctx.lineTo(x, y) : ctx.moveTo(x, y); open = true; } else if (open){ for (let j = i - 1; j >= 0 && nz[j] > 0.15; j--) ctx.lineTo(j * COLW, base(j)); ctx.closePath(); open = false; } }
+    if (open){ for (let j = N - 1; j >= 0 && nz[j] > 0.15; j--) ctx.lineTo(j * COLW, base(j)); ctx.closePath(); }
+    ctx.fill();
+    // 가닥 주변에 스며든 옅은 막
+    ctx.fillStyle = '#d6f3f4'; ctx.globalAlpha = 0.18 * sim.eps;
+    for (const f of sim.filaments){ if (f.buried) continue; ctx.beginPath(); ctx.ellipse(f.x, Y(f.y), f.len * 0.45 * f.g + 3, Math.max(2, epsT * 0.9), 0, 0, 6.283); ctx.fill(); }
+    // 1px 은은한 광택
+    ctx.globalAlpha = 0.4 * sim.eps; ctx.strokeStyle = '#f2fbfb'; ctx.lineWidth = 1;
+    ctx.beginPath(); for (let i = 0; i < N; i++){ const x = i * COLW, y = base(i) - thick(i) + 0.5; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); } ctx.stroke();
     ctx.restore();
   }
   // 쌓이는 중인 퇴적물
@@ -516,7 +541,7 @@ function draw(){
     const a = f.alpha * (covered ? 0.35 : 1); if (a <= 0.02 || f.g <= 0.02) continue;
     const len = f.len * f.g, yc = Y(f.y), half = len / 2;
     const dy = covered ? 0 : (Y(sim.surfW((f.x + half) / COLW)) - Y(sim.surfW((f.x - half) / COLW)));
-    ctx.strokeStyle = `hsla(${f.hue},55%,${f.light}%,${a})`; ctx.lineWidth = 2.8;
+    ctx.strokeStyle = `hsla(${f.hue},55%,${f.light}%,${a})`; ctx.lineWidth = 2.3;
     ctx.beginPath();
     for (let k = 0; k <= 10; k++){ const u = k / 10; const x = f.x - half + len * u; const y = yc + dy * (u - 0.5) + Math.sin(u * 6.5 * f.g + f.seed + t * 1.3) * f.amp; k ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
     ctx.stroke();
