@@ -212,7 +212,7 @@ const ignoreAbort = e => { if (!(e instanceof Abort)) throw e; };
 // ---------- 시뮬레이션 상태 ----------
 const sim = {
   base: null, layers: [], filaments: [], matCover: 0, eps: 0,
-  heap: new Float32Array(N), heapGrains: [], particles: [], bubbles: [], hl: null,
+  heap: new Float32Array(N), heapGrains: [], particles: [], bubbles: [], sprouts: [], hl: null,
   cam: { s: 1, A: FLOOR }, camS: 1, section: false, time: 0, dirty: true,
   get top(){ return this.layers.length ? this.layers[this.layers.length - 1].top : this.base; },
   get count(){ let n = 0; for (const L of this.layers) if (L.done) n++; return n; },   // 완성된 층 수
@@ -239,7 +239,7 @@ async function fitCamera(){
 function spawnFilaments(n, alpha = 1){
   for (let k = 0; k < n; k++){
     const x = rand(4, W - 4);
-    sim.filaments.push({ x, y: sim.surfW(x / COLW) - MAT_T * 0.55, len: rand(28, 54), amp: rand(2, 4), seed: rand(0, 6.28), hue: rand(126, 152), light: rand(44, 62), alpha, buried: false, mv: null, born: 0 });
+    sim.filaments.push({ x, y: sim.surfW(x / COLW) - MAT_T * 0.55, len: rand(28, 54), amp: rand(2, 4), seed: rand(0, 6.28), hue: rand(126, 152), light: rand(44, 62), alpha, g: 1, buried: false, born: 0 });
   }
 }
 function commitLayer(top, grains){
@@ -251,7 +251,8 @@ function commitLayer(top, grains){
 }
 function finishGrowth(){
   sim.filaments = sim.filaments.filter(f => !f.buried);
-  for (const f of sim.filaments){ f.mv = null; f.alpha = 1; f.y = sim.surfW(f.x / COLW) - MAT_T * 0.55; }
+  for (const f of sim.filaments){ f.alpha = 1; f.g = 1; f.y = sim.surfW(f.x / COLW) - MAT_T * 0.55; }
+  sim.sprouts = [];
   spawnFilaments(FULL - sim.filaments.length);
   sim.matCover = 1;
   if (sim.layers.length){ const L = sim.layers[sim.layers.length - 1]; L.age = 1; L.done = true; }
@@ -261,7 +262,7 @@ function finishGrowth(){
 function setState(stage){
   cancelAnims();
   sim.base = baseProfile(); sim.layers = []; sim.filaments = []; sim.matCover = 0; sim.eps = 0;
-  sim.heap.fill(0); sim.heapGrains = []; sim.particles = []; sim.bubbles = []; sim.hl = null;
+  sim.heap.fill(0); sim.heapGrains = []; sim.particles = []; sim.bubbles = []; sim.sprouts = []; sim.hl = null;
   setCam(1); sim.section = false;
   if (stage >= 1){ spawnFilaments(FULL); sim.matCover = 1; }
   if (stage >= 2) sim.eps = 1;
@@ -325,24 +326,39 @@ async function sedimentStep(sticky){
     sim.particles = []; sim.heap.fill(0); sim.heapGrains = [];
   }
 }
-// 남세균이 다시 성장한다: 일부 가닥이 퇴적물 위로 이동하고 새 표면을 따라 매트가 형성된다
+// 남세균이 다시 성장한다: 묻힌 매트는 제자리에 남아 흐려지고, 일부 짧은 가닥만 퇴적물 틈을 따라
+// 표면에 닿은 뒤, 표면 여러 지점에서 새 가닥이 나타나 옆으로 자라며 새 매트를 이룬다
 async function growthStep(){
   const L = sim.layers[sim.layers.length - 1];
-  const stay = [];
-  for (const f of sim.filaments){
-    if (f.buried && Math.random() < 0.45){ const x1 = clamp(f.x + rand(-14, 14), 4, W - 4); f.mv = { x0: f.x, y0: f.y, x1, y1: sim.surfW(x1 / COLW) - MAT_T * 0.55, d: rand(0, 0.5) }; f.buried = false; }
-    else stay.push(f);
+  const buried = sim.filaments.filter(f => f.buried);
+  // 퇴적물 틈을 따라 올라가는 짧은 가닥의 경로(짧고 불규칙)
+  sim.sprouts = [];
+  const nS = Math.min(26, buried.length);
+  for (let k = 0; k < nS; k++){
+    const src = buried[Math.floor(Math.random() * buried.length)];
+    const x0 = src.x + rand(-src.len / 2, src.len / 2), y0 = src.y;
+    const x1 = clamp(x0 + rand(-12, 12), 4, W - 4), y1 = sim.surfW(x1 / COLW) - MAT_T * 0.4;
+    const n = 4 + Math.floor(Math.random() * 3), pts = [[x0, y0]];
+    for (let i = 1; i < n; i++){ const u = i / n; pts.push([lerp(x0, x1, u) + rand(-7, 7), lerp(y0, y1, u) + rand(-3, 3)]); }
+    pts.push([x1, y1]);
+    sim.sprouts.push({ pts, d: rand(0, 0.32), t: 0, hue: src.hue, a: 1 });
   }
+  // 새 매트: 표면 여러 지점에서 나타나 옆으로 자라는 가닥
   const fresh = [];
-  await tween(dur(3000), p => {
-    for (const f of sim.filaments){
-      if (f.mv){ const t = easeOut(clamp((p - f.mv.d) / 0.5, 0, 1)); f.x = lerp(f.mv.x0, f.mv.x1, t); f.y = lerp(f.mv.y0, f.mv.y1, t) - Math.sin(t * Math.PI) * 3; if (t >= 1) f.mv = null; }
-      else if (f.buried) f.alpha = 1 - 0.7 * p;
+  const births = [];
+  for (const sp of sim.sprouts) births.push({ x: sp.pts[sp.pts.length - 1][0], at: sp.d + 0.33 });
+  while (births.length < FULL) births.push({ x: rand(4, W - 4), at: rand(0.3, 0.7) });
+  births.sort((a, b) => a.at - b.at);
+  let bi = 0;
+  await tween(dur(3200), p => {
+    for (const f of buried) f.alpha = 1 - 0.75 * easeOut(clamp(p / 0.8, 0, 1));
+    for (const sp of sim.sprouts){ sp.t = clamp((p - sp.d) / 0.33, 0, 1); if (p > 0.8) sp.a = 1 - (p - 0.8) / 0.2; }
+    while (bi < births.length && births[bi].at <= p){
+      const b = births[bi++]; spawnFilaments(1, 1);
+      const f = sim.filaments[sim.filaments.length - 1]; f.x = b.x; f.y = sim.surfW(b.x / COLW) - MAT_T * 0.55; f.g = 0; f.born = b.at; fresh.push(f);
     }
-    const want = Math.floor(clamp((p - 0.3) / 0.65, 0, 1) * (FULL * 0.6));
-    while (fresh.length < want){ spawnFilaments(1, 0); const f = sim.filaments[sim.filaments.length - 1]; f.born = p; fresh.push(f); }
-    for (const f of fresh) f.alpha = clamp((p - f.born) / 0.25, 0, 1);
-    sim.matCover = clamp((p - 0.35) / 0.65, 0, 1);
+    for (const f of fresh) f.g = easeOut(clamp((p - f.born) / 0.3, 0, 1));
+    sim.matCover = clamp((p - 0.5) / 0.5, 0, 1);
     L.age = clamp((p - 0.15) / 0.85, 0, 1); sim.dirty = true;
   });
   finishGrowth();
@@ -496,13 +512,24 @@ function draw(){
   ctx.lineCap = 'round';
   for (const f of sim.filaments){
     const ci = clamp(Math.round(f.x / COLW), 0, N - 1);
-    const covered = f.buried || (sim.heap[ci] > 1.5 && !f.mv);
-    const a = f.alpha * (covered ? 0.35 : 1); if (a <= 0.02) continue;
-    const yc = Y(f.y), half = f.len / 2, onSurf = !covered && !f.mv;
-    const dy = onSurf ? (Y(sim.surfW((f.x + half) / COLW)) - Y(sim.surfW((f.x - half) / COLW))) : 0;
+    const covered = f.buried || sim.heap[ci] > 1.5;
+    const a = f.alpha * (covered ? 0.35 : 1); if (a <= 0.02 || f.g <= 0.02) continue;
+    const len = f.len * f.g, yc = Y(f.y), half = len / 2;
+    const dy = covered ? 0 : (Y(sim.surfW((f.x + half) / COLW)) - Y(sim.surfW((f.x - half) / COLW)));
     ctx.strokeStyle = `hsla(${f.hue},55%,${f.light}%,${a})`; ctx.lineWidth = 2.8;
     ctx.beginPath();
-    for (let k = 0; k <= 10; k++){ const u = k / 10; const x = f.x - half + f.len * u; const y = yc + dy * (u - 0.5) + Math.sin(u * 6.5 + f.seed + t * 1.3) * f.amp; k ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+    for (let k = 0; k <= 10; k++){ const u = k / 10; const x = f.x - half + len * u; const y = yc + dy * (u - 0.5) + Math.sin(u * 6.5 * f.g + f.seed + t * 1.3) * f.amp; k ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+    ctx.stroke();
+  }
+  // 퇴적물 틈을 따라 표면으로 올라가는 짧은 가닥
+  ctx.lineWidth = 2;
+  for (const sp of sim.sprouts){
+    if (sp.t <= 0 || sp.a <= 0.02) continue;
+    const segs = sp.pts.length - 1, prog = sp.t * segs, full = Math.floor(prog), frac = prog - full;
+    ctx.strokeStyle = `hsla(${sp.hue},55%,48%,${sp.a * 0.95})`; ctx.beginPath();
+    ctx.moveTo(sp.pts[0][0], Y(sp.pts[0][1]));
+    for (let i = 1; i <= full && i < sp.pts.length; i++) ctx.lineTo(sp.pts[i][0], Y(sp.pts[i][1]));
+    if (full < segs){ const A = sp.pts[full], B = sp.pts[full + 1]; ctx.lineTo(lerp(A[0], B[0], frac), Y(lerp(A[1], B[1], frac))); }
     ctx.stroke();
   }
   // 물의 흐름을 따라 들어오는 퇴적물
@@ -537,7 +564,7 @@ const STEPS = [
   { title: '남세균이 매트를 형성한다', desc: '얕은 바다 바닥에서 남세균이 모여 얇은 매트를 형성합니다.', run: matStep },
   { title: '남세균이 점액질을 분비한다', desc: '남세균이 끈끈한 점액질을 분비합니다.', run: epsStep },
   { title: '퇴적물이 쌓인다', desc: '물에 실려 온 미세한 퇴적물이 점액질에 붙잡혀 쌓입니다.', run: () => sedimentStep(true) },
-  { title: '남세균이 다시 성장한다', desc: '남세균은 햇빛을 받기 위해 쌓인 퇴적물 위로 이동해 다시 성장합니다.', run: growthStep, done: '이 과정으로 하나의 얇은 층이 만들어집니다.' },
+  { title: '남세균이 다시 성장한다', desc: '일부 남세균은 햇빛이 닿는 퇴적물 표면으로 이동하고, 그곳에서 다시 성장합니다.', run: growthStep, done: '이 과정으로 하나의 얇은 층이 만들어집니다.' },
 ];
 let stepIdx = 0, tBusy = false, tDone = false;
 const stepbar = $('stepbar');
