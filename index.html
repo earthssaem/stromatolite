@@ -49,11 +49,11 @@ main{display:flex;flex-direction:column;gap:10px;margin-top:10px}
 .stage-bar .btn{pointer-events:auto;min-height:40px;padding:6px 14px;font-size:15px;background:rgba(255,255,255,.92);color:#16302c;border-color:transparent}
 .legend{display:flex;flex-wrap:wrap;gap:6px 22px;font-size:16px;font-weight:500;color:var(--ink-2);padding:0 8px}
 .legend span::before{content:"";display:inline-block;width:14px;height:14px;border-radius:3px;margin-right:7px;vertical-align:-1px;background:var(--c)}
-.panel{background:var(--panel);border-radius:16px;box-shadow:var(--shadow);padding:16px 22px}
+.panel{background:var(--panel);border-radius:16px;box-shadow:var(--shadow);padding:12px 18px}
 .eyebrow{font-size:14px;font-weight:600;letter-spacing:.06em;color:var(--accent)}
 .panel h2{font-weight:700;font-size:clamp(24px,1.6vw,30px);margin:0;line-height:1.3;text-wrap:balance}
 .panel .desc{margin:0;font-size:17px;font-weight:500}
-.msg{border-radius:10px;padding:9px 14px;font-size:17px;font-weight:500;background:var(--tab-bg);line-height:1.5}
+.msg{border-radius:10px;padding:7px 12px;font-size:17px;font-weight:500;background:var(--tab-bg);line-height:1.5}
 .msg.ok{background:var(--ok-bg);color:var(--ok);font-weight:600}
 .refbox{font-size:16px;color:var(--ink-2);border-left:3px solid var(--line);padding:2px 0 2px 12px;line-height:1.5}
 .refbox b{color:var(--ink);font-weight:700}
@@ -62,37 +62,31 @@ main{display:flex;flex-direction:column;gap:10px;margin-top:10px}
 .steps i.done{background:var(--accent)}
 .steps i.cur{background:var(--accent);opacity:.5}
 .btnrow{display:flex;flex-wrap:wrap;gap:10px}
-.btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);min-height:52px;padding:10px 20px;border-radius:12px;font-weight:600;font-size:17.5px;line-height:1.3;transition:transform .08s,background .15s}
+.btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);min-height:47px;padding:8px 18px;border-radius:12px;font-weight:600;font-size:17.5px;line-height:1.3;transition:transform .08s,background .15s}
 .btn:hover:not(:disabled){background:var(--tab-bg)}
 .btn:active:not(:disabled){transform:translateY(1px)}
 .btn.primary{background:var(--accent);color:var(--accent-ink);border-color:transparent}
 .btn.primary:hover:not(:disabled){filter:brightness(1.08);background:var(--accent)}
 .btn:disabled{opacity:.45;cursor:not-allowed}
-.btn.big{padding:10px 28px;font-size:18px;font-weight:700}
+.btn.big{padding:8px 26px;font-size:18px;font-weight:700}
 /* 교사 시연: 가로형 카드 (진행 표시 | 제목·설명·안내 | 버튼) */
-#panel-teacher{display:grid;grid-template-columns:minmax(170px,230px) minmax(0,1fr) auto;gap:12px 28px;align-items:center;min-height:170px}
-#panel-teacher .top{display:flex;flex-direction:column;gap:10px}
-#panel-teacher .mid{display:flex;flex-direction:column;gap:8px;min-width:0}
+#panel-teacher{display:grid;grid-template-columns:minmax(160px,210px) minmax(0,1fr) auto;gap:8px 22px;align-items:center}
+#panel-teacher .top{display:flex;flex-direction:column;gap:8px}
+#panel-teacher .mid{display:flex;flex-direction:column;gap:5px;min-width:0}
 #panel-teacher .btnrow{flex-wrap:nowrap}
 #panel-teacher .btnrow .btn{white-space:nowrap}
-/* 학생 체험: 제목·안내 | 질문/다음 층 | 선택지 3열 | 층 수·버튼 */
-#panel-student{display:flex;flex-direction:column;gap:8px}
-.s-head{display:flex;align-items:center;gap:10px 20px;flex-wrap:wrap}
+/* 학생 체험: 질문(제목)·안내 | 선택지 3열 | 층 수·버튼 */
+#panel-student{display:flex;flex-direction:column;gap:7px}
+.s-head{display:flex;align-items:center;gap:6px 18px;flex-wrap:wrap}
 .s-head .msg{flex:1 1 380px;min-width:0}
-.q{margin:0;font-weight:600;font-size:17px;color:var(--ink-2)}
-.q[hidden]{display:none}
-.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-.card{position:relative;text-align:left;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:12px;padding:10px 44px 10px 16px;display:flex;flex-direction:column;gap:2px;line-height:1.45;transition:background .15s,border-color .15s}
+.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.card{position:relative;text-align:left;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:12px;padding:6px 14px;display:flex;flex-direction:column;gap:0;line-height:1.4;transition:background .15s,border-color .15s}
 .card:hover:not(:disabled){background:var(--tab-bg)}
 .card .ct{font-weight:700;font-size:18px}
 .card .cd{font-size:17px;color:var(--ink-2);font-weight:400}
-.card .ck{position:absolute;right:12px;top:50%;transform:translateY(-50%);width:26px;height:26px;border-radius:50%;background:var(--ok);color:#fff;display:none;align-items:center;justify-content:center;font-weight:700;font-size:15px}
-.card.done{border-color:var(--ok);background:var(--ok-bg)}
-.card.done .ck{display:flex}
-.card:disabled:not(.done){opacity:.5;cursor:not-allowed}
-.card.done:disabled{opacity:1;cursor:default}
-.s-foot{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.count{display:flex;align-items:center;gap:12px;background:var(--tab-bg);border-radius:12px;min-height:52px;padding:6px 16px;font-size:17px;font-weight:500;margin-right:auto}
+.card:disabled{opacity:.5;cursor:not-allowed}
+.s-foot{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.count{display:flex;align-items:center;gap:12px;background:var(--tab-bg);border-radius:12px;min-height:47px;padding:4px 16px;font-size:17px;font-weight:500;margin-right:auto}
 .count b{font-weight:700;font-size:24px;font-variant-numeric:tabular-nums}
 footer{margin-top:18px;font-size:14px;color:var(--ink-2);text-align:center}
 footer .copyright{margin:0;padding-top:12px;border-top:1px solid var(--line)}
@@ -112,7 +106,7 @@ footer .copyright a{color:inherit}
   .s-foot .btn{flex:1 1 auto}
   .count{flex:1 1 100%;margin-right:0}
 }
-@media (max-width:600px){.wrap{width:94%}.panel{padding:14px 16px}.tab{padding:8px 14px}}
+@media (max-width:600px){.wrap{width:94%}.panel{padding:12px 14px}.tab{padding:8px 14px}}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 </style>
 </head>
@@ -162,14 +156,13 @@ footer .copyright a{color:inherit}
   <!-- 학생 체험 패널 -->
   <aside class="panel hidden" id="panel-student">
     <div class="s-head">
-      <h2>층이 만들어지는 과정을 반복해 보자</h2>
+      <h2>다음에는 어떤 과정이 일어날까요?</h2>
       <div class="msg" id="s-msg" aria-live="polite">바닥에 남세균 매트가 형성되어 있습니다. 다음에 일어날 과정을 선택해 보세요.</div>
     </div>
-    <p class="q">다음에는 어떤 과정이 일어날까요?</p>
     <div class="cards">
-      <button class="card" id="s-eps"><span class="ct">남세균이 점액질을 분비한다</span><span class="cd">끈끈한 점액질이 남세균 매트의 표면을 덮습니다.</span><span class="ck" aria-hidden="true">✓</span></button>
-      <button class="card" id="s-sed"><span class="ct">퇴적물이 쌓인다</span><span class="cd">물에 실려 온 미세한 퇴적물이 점액질에 붙잡힙니다.</span><span class="ck" aria-hidden="true">✓</span></button>
-      <button class="card" id="s-grow"><span class="ct">남세균이 성장한다</span><span class="cd">남세균은 햇빛을 받기 위해 쌓인 퇴적물 위로 이동해 다시 성장합니다.</span><span class="ck" aria-hidden="true">✓</span></button>
+      <button class="card" id="s-eps"><span class="ct">남세균이 점액질을 분비한다</span><span class="cd">끈끈한 점액질이 남세균 매트의 표면을 덮습니다.</span></button>
+      <button class="card" id="s-sed"><span class="ct">퇴적물이 쌓인다</span><span class="cd">물에 실려 온 미세한 퇴적물이 점액질에 붙잡힙니다.</span></button>
+      <button class="card" id="s-grow"><span class="ct">남세균이 성장한다</span><span class="cd">남세균이 햇빛이 닿는 표면에서 성장합니다.</span></button>
     </div>
     <div class="s-foot">
       <div class="count"><span>만들어진 층</span><b id="s-layers">0</b></div>
@@ -334,6 +327,15 @@ async function epsStep(){
   await tween(dur(2600), p => {
     sim.eps = easeIO(p);
     if (p < 0.85 && Math.random() < 0.5){ const f = sim.filaments[Math.floor(Math.random() * sim.filaments.length)]; if (f) sim.bubbles.push({ x: f.x, y: f.y - 2, vy: -rand(0.15, 0.35), r: rand(0.8, 1.8), a: 0.9, seed: rand(0, 6.28) }); }
+  });
+  sim.eps = 1;
+}
+// 이미 점액질이 있을 때 다시 분비: 막을 겹겹이 쌓지 않고 새로 퍼지는 것처럼 잠깐 갱신한다
+async function epsRefresh(){
+  sim.epsNoise = smoothNoise(N, 4, 3);
+  await tween(dur(1800), p => {
+    sim.eps = 1 - 0.45 * Math.sin(p * Math.PI);
+    if (p < 0.8 && Math.random() < 0.5){ const f = sim.filaments[Math.floor(Math.random() * sim.filaments.length)]; if (f && !f.buried) sim.bubbles.push({ x: f.x, y: f.y - 2, vy: -rand(0.15, 0.35), r: rand(0.8, 1.8), a: 0.9, seed: rand(0, 6.28) }); }
   });
   sim.eps = 1;
 }
@@ -678,15 +680,25 @@ $('t-prev').addEventListener('click', () => { if (stepIdx > 0) playTeacher(stepI
 $('t-reset').addEventListener('click', () => playTeacher(0));
 
 // ---------- 학생 체험 ----------
-const sdone = { eps: false, sed: false, grow: false };
-let sBusy = false, sLocked = false, sSection = false, msgBefore = '';
+// 상태: 버튼을 눌렀는지가 아니라 현재 표면에 무엇이 있는지로 관리한다
+const st = {
+  hasEPS: false,        // 현재 남세균 매트에 점액질이 존재하는가
+  hasSediment: false,   // 점액질에 붙잡힌 퇴적물이 쌓여 있는가(매트가 덮인 상태)
+  epsCanRepeat: true,   // 점액질 분비를 (다시) 실행할 수 있는가: 새로 성장하면 다시 가능
+  surfaceMat: true,     // 남세균 매트가 현재 표면에 드러나 있는가
+  locked: false,        // 한 층 완성 후 '다음 층 쌓기'를 기다리는 중인가
+};
+let sBusy = false, sSection = false, msgBefore = '';
 const START_MSG = '바닥에 남세균 매트가 형성되어 있습니다. 다음에 일어날 과정을 선택해 보세요.';
 function setMsg(text, kind){ const m = $('s-msg'); m.textContent = text; m.className = 'msg' + (kind ? ' ' + kind : ''); }
+function resetCycle(){ st.hasEPS = false; st.hasSediment = false; st.epsCanRepeat = true; st.surfaceMat = true; st.locked = false; }
 function renderStudent(){
-  for (const k of ['eps', 'sed', 'grow']){ const el = $('s-' + k); el.classList.toggle('done', sdone[k]); el.disabled = sBusy || sLocked || sSection || sdone[k]; el.setAttribute('aria-label', el.querySelector('.ct').textContent + (sdone[k] ? ' (완료)' : '')); }
+  const off = sBusy || st.locked || sSection;
+  $('s-eps').disabled = off || !st.surfaceMat || !st.epsCanRepeat;   // 매트가 드러나 있고, 새로 성장한 뒤라면 다시 분비 가능
+  $('s-sed').disabled = off || st.hasSediment;                          // 이미 쌓인 뒤에는 성장으로 새 매트를 만들어야 함
+  $('s-grow').disabled = off;                                           // 성장은 언제든 가능(퇴적물 유무에 따라 결과가 다름)
   $('s-layers').textContent = sim.count;
-  document.querySelector('#panel-student .q').hidden = sLocked;
-  $('s-next').hidden = !sLocked; $('s-next').disabled = sBusy || sSection;
+  $('s-next').hidden = !st.locked; $('s-next').disabled = sBusy || sSection;
   $('s-section').disabled = sBusy || sim.count < 2;
   $('s-section').textContent = sSection ? '단면 닫기' : '층의 단면 보기';
   $('s-reset').disabled = sBusy || sSection;
@@ -694,32 +706,42 @@ function renderStudent(){
   $('sec-tag').textContent = `층의 단면 · 만들어진 층 ${sim.count}개`;
 }
 async function studentAction(key){
-  if (sBusy || sLocked || sSection || sdone[key]) return;
+  if (sBusy || st.locked || sSection || $('s-' + key).disabled) return;
   sBusy = true; renderStudent();
   const id = anim.id;
   try {
     if (key === 'eps'){
-      setMsg('남세균이 점액질을 분비합니다. 매트 표면이 얇은 막으로 덮입니다.');
-      await epsStep(); sdone.eps = true;
-      setMsg('점액질이 남세균 매트의 표면을 덮었습니다.');
+      if (!st.hasEPS){
+        setMsg('남세균이 점액질을 분비합니다. 매트 표면이 얇은 막으로 덮입니다.');
+        await epsStep(); st.hasEPS = true;
+        setMsg('점액질이 남세균 매트의 표면을 덮었습니다.');
+      } else {
+        setMsg('새로 성장한 남세균도 점액질을 분비합니다.');
+        await epsRefresh();
+        setMsg('새로 성장한 남세균도 점액질을 분비합니다.');
+      }
+      st.epsCanRepeat = false;
     } else if (key === 'sed'){
-      if (sdone.eps){
+      if (st.hasEPS){
         setMsg('물에 실려 온 퇴적물이 들어옵니다. 일부는 점액질에 붙잡히고 일부는 계속 흘러갑니다.');
-        await sedimentStep(true); sdone.sed = true;
+        await sedimentStep(true);
+        st.hasSediment = true; st.surfaceMat = false; st.hasEPS = false;   // 매트와 점액질이 퇴적물에 덮임
         setMsg('퇴적물이 점액질에 붙잡혀 매트 위에 얇게 쌓였습니다.');
       } else {
         setMsg('물에 실려 온 퇴적물이 들어옵니다…');
-        await sedimentStep(false);
+        await sedimentStep(false);   // 상태 변화 없음
         setMsg('퇴적물이 내려앉았지만, 붙잡아 줄 점액질이 없어 대부분 물에 쓸려 갔습니다.');
       }
     } else {
-      if (sdone.sed){
-        setMsg('남세균이 쌓인 퇴적물 위로 이동해 새 표면에서 다시 성장합니다.');
-        await growthStep(); sdone.grow = true; sLocked = true;
+      if (st.hasSediment){
+        setMsg('일부 남세균이 퇴적물 표면으로 이동하고, 그곳에서 다시 성장합니다.');
+        await growthStep();          // 층 1개 완성
+        resetCycle(); st.locked = true;
         setMsg('층이 1개 더 만들어졌습니다.', 'ok');
       } else {
         setMsg('남세균이 현재 표면에서 성장합니다…');
-        await smallGrowth();
+        await smallGrowth();         // 층 없음, 점액질 다시 분비 가능
+        st.epsCanRepeat = true;
         setMsg('남세균이 현재 표면에서 성장했습니다. 아직 새 퇴적물이 쌓이지 않아 새로운 층은 만들어지지 않았습니다.');
       }
     }
@@ -730,8 +752,8 @@ $('s-eps').addEventListener('click', () => studentAction('eps'));
 $('s-sed').addEventListener('click', () => studentAction('sed'));
 $('s-grow').addEventListener('click', () => studentAction('grow'));
 $('s-next').addEventListener('click', () => {
-  if (sBusy || sSection || !sLocked) return;
-  sdone.eps = sdone.sed = sdone.grow = false; sLocked = false;
+  if (sBusy || sSection || !st.locked) return;
+  resetCycle();
   setMsg('다음에 일어날 과정을 선택해 보세요.'); renderStudent();
 });
 async function toggleSection(){
@@ -745,7 +767,7 @@ async function toggleSection(){
 }
 $('s-section').addEventListener('click', toggleSection);
 $('sec-close').addEventListener('click', toggleSection);
-function resetStudent(){ setState(1); sdone.eps = sdone.sed = sdone.grow = false; sBusy = false; sLocked = false; sSection = false; setMsg(START_MSG); renderStudent(); }
+function resetStudent(){ setState(1); resetCycle(); sBusy = false; sSection = false; setMsg(START_MSG); renderStudent(); }
 $('s-reset').addEventListener('click', resetStudent);
 
 // ---------- 탭 ----------
