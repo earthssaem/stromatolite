@@ -783,12 +783,10 @@ function setMode(m){
   $('panel-teacher').classList.toggle('hidden', m !== 'teacher'); $('panel-student').classList.toggle('hidden', m !== 'student');
   cancelAnims(); tBusy = false; sBusy = false; sSection = false; $('sec-bar').hidden = true;
   if (m === 'teacher') playTeacher(0); else resetStudent();
-  try { localStorage.setItem('strom-mode', m); } catch (e) {}
 }
 $('tab-teacher').addEventListener('click', () => setMode('teacher'));
 $('tab-student').addEventListener('click', () => setMode('student'));
-let initial = 'teacher'; try { initial = localStorage.getItem('strom-mode') || 'teacher'; } catch (e) {}
-setMode(initial);
+setMode('teacher'); // 처음 열 때는 항상 교사 시연 탭
 })();
 </script>
 </body>
