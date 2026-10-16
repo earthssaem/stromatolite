@@ -91,6 +91,8 @@ main{display:flex;flex-direction:column;gap:10px;margin-top:10px}
 footer{margin-top:18px;font-size:14px;color:var(--ink-2);text-align:center}
 footer .copyright{margin:0;padding-top:12px;border-top:1px solid var(--line)}
 footer .copyright a{color:inherit}
+footer .hub{color:inherit;font-weight:500;white-space:nowrap;text-decoration:underline;text-decoration-color:color-mix(in srgb,currentColor 35%,transparent);text-underline-offset:3px}
+footer .hub:hover{color:var(--ink);text-decoration-color:currentColor}
 .hidden{display:none!important}
 @media (max-width:1099px){
   #panel-teacher{grid-template-columns:minmax(160px,220px) minmax(0,1fr)}
@@ -179,7 +181,7 @@ footer .copyright a{color:inherit}
 </main>
 
 <footer>
-  <p class="copyright">© 2026 제작: 김연경(<a href="mailto:earthssaem@gmail.com">earthssaem@gmail.com</a>)</p>
+  <p class="copyright">© 2026 제작: 김연경(<a href="mailto:earthssaem@gmail.com">earthssaem@gmail.com</a>) | <a class="hub" href="https://earthssaem-lab.vercel.app/" target="_blank" rel="noopener">연경쌤의 지구과학 실험실 둘러보기 →</a></p>
 </footer>
 </div>
 
