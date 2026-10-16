@@ -33,6 +33,10 @@ button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:8px 24px;padding-bottom:8px;border-bottom:1px solid var(--line)}
 .brand h1{font-weight:800;font-size:clamp(32px,2.2vw,44px);margin:0;letter-spacing:-.02em;line-height:1.25;text-wrap:balance;word-break:keep-all}
 .brand{flex:1 1 0;min-width:0;display:flex;align-items:baseline;gap:4px 16px;flex-wrap:wrap}
+/* 제목 부분(제목·부제)을 누르면 처음 화면으로 */
+a.brand{color:inherit;text-decoration:none;border-radius:16px;margin:-4px -8px;padding:4px 8px;-webkit-tap-highlight-color:transparent}
+@media (hover:hover){ a.brand:hover h1{color:var(--accent)} }   /* 터치 화면에서는 누른 뒤 색이 남지 않게 */
+a.brand:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .tabs{flex:none}
 .brand p{margin:0;color:var(--ink-2);font-size:17px;font-weight:500}
 .tabs{display:flex;gap:6px;background:var(--tab-bg);padding:5px;border-radius:12px;flex:none}
@@ -106,6 +110,7 @@ footer .hub:hover{color:var(--ink);text-decoration-color:currentColor}
   /* 좁은 화면: 제목과 탭을 위아래로 배치해 제목이 세로로 깨지지 않게 함 */
   header{flex-direction:column;align-items:stretch;gap:10px}
   .brand{flex:none;width:100%}
+  a.brand{width:calc(100% + 16px)}   /* 좌우 -8px 여백만큼 넓혀 제목 줄바꿈 위치가 그대로이게 */
   .tabs{width:100%}
   .tab{flex:1 1 0;min-width:0;padding:8px 10px}
   #panel-teacher{grid-template-columns:1fr;gap:10px}
@@ -120,10 +125,10 @@ footer .hub:hover{color:var(--ink);text-decoration-color:currentColor}
 <body>
 <div class="wrap">
 <header>
-  <div class="brand">
+  <a class="brand" id="homeLink" href="#" title="처음 화면으로" aria-label="스트로마톨라이트는 어떻게 만들어질까? — 처음 화면으로">
     <h1>스트로마톨라이트는 어떻게 만들어질까?</h1>
     <p>남세균의 활동과 퇴적물이 만드는 층상 구조를 살펴보자.</p>
-  </div>
+  </a>
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" id="tab-teacher" aria-selected="true">교사 시연<small>한 층이 만들어지는 과정</small></button>
     <button class="tab" role="tab" id="tab-student" aria-selected="false">학생 체험<small>과정을 반복해 층 쌓기</small></button>
@@ -788,6 +793,14 @@ function setMode(m){
 }
 $('tab-teacher').addEventListener('click', () => setMode('teacher'));
 $('tab-student').addEventListener('click', () => setMode('student'));
+// 제목을 누르면 처음 화면으로: 교사 시연 탭 · 1단계
+// 이미 교사 시연 1단계면 그대로 둠(재생 중인 장면을 다시 시작하지 않게)
+function goHome(){
+  if (mode !== 'teacher') setMode('teacher');   // 탭 전환이 1단계 재생까지 함
+  else if (stepIdx !== 0) playTeacher(0);
+  scrollTo(0, 0); document.body.scrollTop = 0;   // 좁은 화면에서 스크롤한 경우 맨 위로
+}
+$('homeLink').addEventListener('click', e => { e.preventDefault(); goHome(); });
 setMode('teacher'); // 처음 열 때는 항상 교사 시연 탭
 })();
 </script>
