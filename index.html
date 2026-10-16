@@ -719,6 +719,7 @@ function renderStudent(){
 }
 async function studentAction(key){
   if (sBusy || st.locked || sSection || $('s-' + key).disabled) return;
+  sPre = snapStudent();   // 이 과정 도중에 탭을 떠나면 이 직전 상태로 보관
   sBusy = true; renderStudent();
   const id = anim.id;
   try {
@@ -770,6 +771,7 @@ $('s-next').addEventListener('click', () => {
 });
 async function toggleSection(){
   if (sBusy || (!sSection && sim.count < 2)) return;
+  sPre = snapStudent();
   sBusy = true; const id = anim.id;
   try {
     if (!sSection){ sSection = true; msgBefore = $('s-msg').textContent; renderStudent(); setMsg('지금까지 만들어진 층의 단면입니다. 각 층의 경계를 살펴보세요. 닫으면 이어서 층을 쌓을 수 있습니다.'); await openSection(); }
@@ -782,18 +784,46 @@ $('sec-close').addEventListener('click', toggleSection);
 function resetStudent(){ setState(1); resetCycle(); sBusy = false; sSection = false; setMsg(START_MSG); renderStudent(); }
 $('s-reset').addEventListener('click', resetStudent);
 
+// 학생 체험 상태 보관: 교사 시연 탭이나 제목을 눌러 다녀와도 쌓은 층과 진행 상황이 그대로 남도록
+// (두 탭이 같은 화면·시뮬레이션을 쓰므로 떠날 때 저장했다가 돌아올 때 되살린다. 진행 중이던 과정은 그 직전 상태로)
+let sSaved = null, sPre = null;
+function snapStudent(){
+  const m = $('s-msg');
+  return {
+    W, FLOOR,
+    sim: structuredClone({ base: sim.base, epsNoise: sim.epsNoise, layers: sim.layers, filaments: sim.filaments, matCover: sim.matCover, eps: sim.eps, heap: sim.heap, heapGrains: sim.heapGrains, sprouts: sim.sprouts, camS: sim.camS }),
+    st: { ...st },
+    msg: sSection ? msgBefore : m.textContent, kind: sSection ? '' : m.className.replace(/^msg\s*/, ''),
+  };
+}
+function restoreStudent(s){
+  cancelAnims();
+  const v = structuredClone(s.sim);
+  const xs = W / s.W, dF = FLOOR - s.FLOOR;   // 그사이 창 크기가 바뀌었으면 fitCanvas와 같은 방식으로 좌표를 옮김
+  for (const f of v.filaments){ f.x *= xs; f.y += dF; }
+  for (const sp of v.sprouts) for (const pt of sp.pts){ pt[0] *= xs; pt[1] += dF; }
+  for (const q of v.heapGrains){ q.x *= xs; q.y += dF; }
+  for (const L of v.layers) for (const q of L.grains) q.x *= xs;
+  Object.assign(sim, v); sim.particles = []; sim.bubbles = []; sim.hl = null; sim.section = false;
+  setCam(v.camS);
+  Object.assign(st, s.st); sBusy = false; sSection = false;
+  setMsg(s.msg, s.kind); renderStudent();
+}
+
 // ---------- 탭 ----------
 let mode = 'teacher';
 function setMode(m){
+  if (m === 'student' && mode === 'student') return;            // 이미 학생 체험 탭이면 그대로
+  if (mode === 'student') sSaved = sBusy ? sPre : snapStudent();   // 학생 체험을 떠날 때 보관
   mode = m;
   $('tab-teacher').setAttribute('aria-selected', m === 'teacher'); $('tab-student').setAttribute('aria-selected', m === 'student');
   $('panel-teacher').classList.toggle('hidden', m !== 'teacher'); $('panel-student').classList.toggle('hidden', m !== 'student');
   cancelAnims(); tBusy = false; sBusy = false; sSection = false; $('sec-bar').hidden = true;
-  if (m === 'teacher') playTeacher(0); else resetStudent();
+  if (m === 'teacher') playTeacher(0); else if (sSaved) restoreStudent(sSaved); else resetStudent();
 }
 $('tab-teacher').addEventListener('click', () => setMode('teacher'));
 $('tab-student').addEventListener('click', () => setMode('student'));
-// 제목을 누르면 처음 화면으로: 교사 시연 탭 · 1단계
+// 제목을 누르면 처음 화면으로: 교사 시연 탭 · 1단계 (학생 체험에서 쌓은 층은 위의 보관 덕분에 그대로 남음)
 // 이미 교사 시연 1단계면 그대로 둠(재생 중인 장면을 다시 시작하지 않게)
 function goHome(){
   if (mode !== 'teacher') setMode('teacher');   // 탭 전환이 1단계 재생까지 함
